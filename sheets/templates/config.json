@@ -1,0 +1,62 @@
+{
+  "system": {
+    "version": "1.0.0",
+    "name": "KhangHang1 Trading Journal",
+    "supported_markets": ["phai_sinh", "co_phieu"]
+  },
+  "defaults": {
+    "von_ban_dau": 200000000,
+    "tien_te": "VNĐ",
+    "nap_tien": 0,
+    "rut_tien": 0
+  },
+  "phai_sinh": {
+    "label": "Phái sinh VN30F",
+    "diem_to_vnd": 100000,
+    "phi_moi_hd_moi_chieu": 7700,
+    "vi_the_options": ["Long", "Short"],
+    "phien_options": ["Sáng", "Chiều", "ATO", "ATC"],
+    "ticker_prefix": "VN30F",
+    "giao_dich_t_plus": 0,
+    "gio_mo_cua": "08:45",
+    "gio_dong_cua": "14:45",
+    "lot_size": 1
+  },
+  "co_phieu": {
+    "label": "Cổ phiếu Việt Nam",
+    "phi_gd_pct": 0.0015,
+    "thue_ban_pct": 0.001,
+    "vi_the_options": ["Mua", "Bán"],
+    "phien_options": ["ATO", "Sáng", "Chiều", "ATC"],
+    "giao_dich_t_plus": 2,
+    "lot_size": 100,
+    "san_options": ["HOSE", "HNX", "UPCOM"]
+  },
+  "trang_thai_options": [
+    {"value": "Win", "icon": "✅", "color": "#10b981"},
+    {"value": "Lose", "icon": "❌", "color": "#ef4444"},
+    {"value": "Hòa", "icon": "➖", "color": "#f59e0b"},
+    {"value": "Đang mở", "icon": "⏳", "color": "#3b82f6"}
+  ],
+  "tam_ly_options": [
+    {"value": "Bình tĩnh", "icon": "😌"},
+    {"value": "Tự tin", "icon": "🔥"},
+    {"value": "Lo lắng", "icon": "😰"},
+    {"value": "FOMO", "icon": "😱"},
+    {"value": "Tham lam", "icon": "🤑"},
+    {"value": "Kỷ luật", "icon": "🎯"},
+    {"value": "Bực bội", "icon": "😤"}
+  ],
+  "chien_luoc_options": [
+    "Breakout",
+    "Breakdown",
+    "MA Cross",
+    "Support/Resistance",
+    "Scalping",
+    "Swing",
+    "Trend Following",
+    "Mean Reversion",
+    "News Trading",
+    "Khác"
+  ]
+}

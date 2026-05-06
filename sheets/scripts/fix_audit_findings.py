@@ -1,0 +1,26 @@
+"""Fix minor audit findings: add PLO and Do dự"""
+import os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+from google.oauth2.credentials import Credentials as OAuthCreds
+from googleapiclient.discovery import build
+import gspread
+
+TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
+SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+
+def fix():
+    creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
+    gc = gspread.authorize(creds)
+    sh = gc.open_by_key(SHEET_ID)
+    ws_setup = sh.worksheet("SETUP")
+
+    # Add PLO to LOẠI LỆNH (Block starts at AE col=30)
+    ws_setup.update('AE9:AH9', [["PLO", "PLO", "Sau giờ", True]], value_input_option='USER_ENTERED')
+    
+    # Add Do dự to TÂM LÝ (Block starts at Z col=25)
+    ws_setup.update('Z10:AC10', [["Do dự", "Hesitation", "Trễ nhịp thị trường", True]], value_input_option='USER_ENTERED')
+
+    print("Fixed: Added PLO and Do dự to SETUP")
+
+if __name__ == '__main__':
+    fix()

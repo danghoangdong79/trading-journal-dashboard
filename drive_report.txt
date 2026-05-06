@@ -1,0 +1,16 @@
+﻿=== STORAGE QUOTA ===
+  Limit:      0.00 GB
+  Usage:      0.00 GB
+  In Drive:   0.00 MB
+  In Trash:   0.00 MB
+
+=== ALL FILES ===
+Total files: 8
+  Copy of Nhß║¡t k├╜ Giao dß╗ïch - Ocean Edition  |  0.33MB  |  2026-05-06
+  Copy of Mß║½u dß╗» liß╗çu  |  0.02MB  |  2026-05-06
+  QHP Credit Hub  |  0.42MB  |  2026-03-07
+  1. HMS-CODE  |  1.11MB  |  2026-01-17
+  PCD_TASKS  |  0.07MB  |  2025-12-30
+  HMS_MATERIALS  |  0.99MB  |  2025-08-24
+  QHP_ALLSITE_Cashflow  |  0.00MB  |  2026-04-09
+  BOD Report - HMS-PCD  |  0.04MB  |  2026-04-09
