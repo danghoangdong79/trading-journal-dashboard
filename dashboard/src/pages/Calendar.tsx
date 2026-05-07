@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ExternalLink, CalendarRange, TrendingUp, TrendingDown, Target, Clock3, Flame } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card } from '../components/ui/Card.tsx';
 import { AnalyticsService } from '../services/analyticsService.ts';
@@ -25,7 +25,7 @@ function formatDateLabel(date: Date) {
 }
 
 export default function Calendar() {
-  const { trades } = useApp();
+  const { settings, trades } = useApp();
   const dailyPnL = useMemo(() => AnalyticsService.getDailyPnL(trades), [trades]);
   const fallbackDate = new Date();
   const [viewDate, setViewDate] = useState(new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), 1));
@@ -81,40 +81,100 @@ export default function Calendar() {
   const selectedFees = selectedTrades.reduce((sum, trade) => sum + trade.feesAndTaxes, 0);
   const selectedTopTrade = selectedTrades.slice().sort((a, b) => Math.abs(b.netPnL) - Math.abs(a.netPnL))[0];
   const maxAbs = Math.max(...monthItems.map((item) => Math.abs(item.pnl)), 1);
+  const tradingDays = monthItems.length;
+  const avgDailyPnl = tradingDays ? monthPnl / tradingDays : 0;
+  const winRateMonth = monthSummary.closedTrades ? monthSummary.winningTrades / monthSummary.closedTrades : 0;
+  const activeStreak = monthItems.reduce((best, item) => (item.pnl > 0 && best >= 0 ? best + 1 : item.pnl > 0 ? 1 : 0), 0);
+  const monthMomentum = monthPnl >= 0 ? 'Đang đi lên' : 'Đang hồi phục';
+  const monthSheetUrl = settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#gid=0&range=${encodeURIComponent('JOURNAL!A1:X2000')}` : '/settings';
+  const getTradeSheetUrl = (rowNumber: number) => (settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#gid=0&range=${encodeURIComponent(`A${rowNumber}:X${rowNumber}`)}` : '/settings');
 
   const moveMonth = (offset: number) => {
     setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   };
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-5">
-      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[1fr_360px]">
+    <div className="mx-auto max-w-[1440px] space-y-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="!p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="type-caption text-[10px]">PnL tháng</div>
+              <div className={cn('mt-1 font-mono text-[20px] font-bold', monthPnl >= 0 ? 'text-[var(--win)]' : 'text-[var(--loss)]')}>
+                {monthPnl >= 0 ? '+' : ''}{formatCurrency(monthPnl)}
+              </div>
+            </div>
+            <div className="rounded-xl bg-[var(--accent-soft)] p-2 text-[var(--accent)]"><TrendingUp size={18} /></div>
+          </div>
+          <div className="mt-2 text-[11px] font-semibold text-[var(--muted)]">{monthMomentum}</div>
+        </Card>
+        <Card className="!p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="type-caption text-[10px]">Tỉ lệ thắng</div>
+              <div className="mt-1 font-mono text-[20px] font-bold text-foreground">{formatPercent(winRateMonth)}</div>
+            </div>
+            <div className="rounded-xl bg-[var(--surface-soft)] p-2 text-[var(--accent)]"><Target size={18} /></div>
+          </div>
+          <div className="mt-2 text-[11px] font-semibold text-[var(--muted)]">{monthSummary.winningTrades}/{monthSummary.closedTrades} lệnh đã đóng</div>
+        </Card>
+        <Card className="!p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="type-caption text-[10px]">Số ngày có giao dịch</div>
+              <div className="mt-1 font-mono text-[20px] font-bold text-foreground">{tradingDays}</div>
+            </div>
+            <div className="rounded-xl bg-[var(--surface-soft)] p-2 text-[var(--accent)]"><CalendarRange size={18} /></div>
+          </div>
+          <div className="mt-2 text-[11px] font-semibold text-[var(--muted)]">TB {formatCurrency(avgDailyPnl)}/ngày</div>
+        </Card>
+        <Card className="!p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="type-caption text-[10px]">Chuỗi thắng</div>
+              <div className="mt-1 font-mono text-[20px] font-bold text-foreground">{activeStreak}</div>
+            </div>
+            <div className="rounded-xl bg-[var(--surface-soft)] p-2 text-[var(--accent)]"><Flame size={18} /></div>
+          </div>
+          <div className="mt-2 text-[11px] font-semibold text-[var(--muted)]">Ngày xanh liên tiếp hiện tại</div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_390px]">
         {/* Calendar Grid */}
         <Card
           title="Lịch PnL tháng"
+          subtitle="Ô ngày cho biết PnL, số lệnh và mã nổi bật; click để soi nhanh chi tiết"
           extra={
             <div className="flex items-center gap-2">
-              <button onClick={() => moveMonth(-1)} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-foreground/5 hover:text-foreground">
+              <a
+                href={monthSheetUrl}
+                target={settings.sheetId ? '_blank' : '_self'}
+                rel={settings.sheetId ? 'noreferrer' : undefined}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[var(--card-border)] px-3 py-1.5 text-[10px] font-bold uppercase text-[var(--muted)] transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                title="Mở tab JOURNAL"
+              >
+                <ExternalLink size={13} />
+                Sheet
+              </a>
+              <button onClick={() => moveMonth(-1)} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-foreground">
                 <ChevronLeft size={16} />
               </button>
               <button
                 onClick={() => { const now = new Date(); setViewDate(new Date(now.getFullYear(), now.getMonth(), 1)); setSelectedKey(dateKey(now)); }}
-                className="rounded-md bg-[var(--accent-soft)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]"
+                className="rounded-md bg-[var(--accent-soft)] px-3 py-1.5 text-[10px] font-bold uppercase text-[var(--accent)]"
               >
                 Hôm nay
               </button>
               <span className="min-w-32 text-center text-[13px] font-bold text-foreground">
                 Tháng {viewDate.getMonth() + 1}/{viewDate.getFullYear()}
               </span>
-              <button onClick={() => moveMonth(1)} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-foreground/5 hover:text-foreground">
-                <ChevronRight size={16} />
-              </button>
             </div>
           }
         >
-          <div className="grid grid-cols-7 overflow-hidden rounded-lg border border-[var(--card-border)]">
+          <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-[var(--card-border)]">
             {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((day) => (
-              <div key={day} className="bg-foreground/[0.03] px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">{day}</div>
+              <div key={day} className="bg-[var(--surface-soft)] px-2 py-2 text-center text-[10px] font-bold uppercase text-[var(--muted)]">{day}</div>
             ))}
             {monthDays.map((date) => {
               const key = dateKey(date);
@@ -130,25 +190,29 @@ export default function Calendar() {
                   key={key}
                   onClick={() => setSelectedKey(key)}
                   className={cn(
-                    'min-h-20 border-r border-t border-[var(--card-border)] p-1.5 text-left transition-all hover:bg-foreground/[0.03]',
+                    'min-h-20 border-r border-t border-[var(--card-border)] p-1.5 text-left transition-all hover:bg-[var(--surface-hover)]',
                     isSelected && 'ring-2 ring-[var(--accent)] ring-inset',
                     !isCurrentMonth && 'opacity-25'
                   )}
                   style={{ background }}
                 >
                   <div className="flex items-start justify-between gap-1">
-                    <span className="text-[12px] font-bold text-foreground/70">{date.getDate()}</span>
-                    {item && <span className="rounded-sm bg-black/20 px-1 py-px text-[8px] font-bold text-white">{item.trades}</span>}
+                    <span className={cn('text-[12px] font-bold', isCurrentMonth ? 'text-[var(--fg-color)]/80' : 'text-[var(--muted)]/85')}>{date.getDate()}</span>
+                    {item && <span className="rounded-sm bg-[color-mix(in_srgb,var(--fg-color)_14%,transparent)] px-1 py-px text-[8px] font-bold text-[var(--fg-color)]/90">{item.trades}</span>}
                   </div>
                   {item ? (
-                    <div className="mt-1.5">
-                      <div className={cn('font-mono text-[12px] font-bold', item.pnl >= 0 ? 'text-emerald-100' : 'text-rose-100')}>
+                    <div className="mt-1.5 space-y-1">
+                      <div className={cn('font-mono text-[12px] font-bold', item.pnl >= 0 ? 'text-[var(--heatmap-positive-text)]' : 'text-[var(--heatmap-negative-text)]')}>
                         {compactCurrency(item.pnl)}
                       </div>
-                      {topTrade && <div className="truncate text-[9px] font-medium text-white/60">{topTrade.symbol}</div>}
+                      {topTrade && <div className="truncate text-[9px] font-medium text-[var(--fg-color)]/72">{topTrade.symbol}</div>}
+                      <div className="flex items-center justify-between text-[8px] font-semibold text-[var(--fg-color)]/68">
+                        <span>{item.label}</span>
+                        <span>{formatPercent(item.wins / Math.max(1, item.trades))}</span>
+                      </div>
                     </div>
                   ) : (
-                    <div className="mt-3 text-[8px] uppercase tracking-wider text-[var(--muted)]">—</div>
+                    <div className="mt-3 text-[8px] uppercase text-[var(--muted)]">—</div>
                   )}
                 </button>
               );
@@ -158,7 +222,7 @@ export default function Calendar() {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          <Card title={`Chi tiết ngày ${formatDateLabel(selectedDate)}`} subtitle={selectedDay ? `${selectedDay.trades} giao dịch` : 'Không có giao dịch'}>
+          <Card title={`Chi tiết ngày ${formatDateLabel(selectedDate)}`} subtitle={selectedDay ? `${selectedDay.trades} giao dịch · ${selectedSummary.winningTrades} thắng · ${selectedSummary.losingTrades} thua` : 'Không có giao dịch'}>
             {selectedDay ? (
               <div className="space-y-4">
                 <div>
@@ -168,33 +232,59 @@ export default function Calendar() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[13px]">
-                  <div className="rounded-lg bg-foreground/[0.03] p-2.5">
+                  <div className="rounded-lg bg-[var(--surface-soft)] p-2.5">
                     <div className="type-caption text-[10px]">Tỷ lệ thắng</div>
                     <div className="mt-0.5 font-mono font-bold text-foreground">{formatPercent(selectedSummary.winRate)}</div>
                   </div>
-                  <div className="rounded-lg bg-foreground/[0.03] p-2.5">
+                  <div className="rounded-lg bg-[var(--surface-soft)] p-2.5">
                     <div className="type-caption text-[10px]">Thắng / Thua</div>
                     <div className="mt-0.5 font-mono font-bold text-foreground">{selectedSummary.winningTrades}/{selectedSummary.losingTrades}</div>
                   </div>
-                  <div className="rounded-lg bg-foreground/[0.03] p-2.5">
+                  <div className="rounded-lg bg-[var(--surface-soft)] p-2.5">
                     <div className="type-caption text-[10px]">Phí & thuế</div>
                     <div className="mt-0.5 font-mono font-bold text-foreground">{formatCurrency(selectedFees)}</div>
                   </div>
-                  <div className="rounded-lg bg-foreground/[0.03] p-2.5">
+                  <div className="rounded-lg bg-[var(--surface-soft)] p-2.5">
                     <div className="type-caption text-[10px]">Lệnh nổi bật</div>
                     <div className="mt-0.5 truncate font-mono font-bold text-foreground">{selectedTopTrade ? `${selectedTopTrade.symbol} ${compactCurrency(selectedTopTrade.netPnL)}` : '—'}</div>
                   </div>
                 </div>
+                <div className="grid grid-cols-3 gap-2 text-[12px]">
+                  <div className="rounded-lg bg-[var(--surface-soft)] p-2.5">
+                    <div className="type-caption text-[10px]">Phí</div>
+                    <div className="mt-0.5 font-mono font-bold text-foreground">{formatCurrency(selectedFees)}</div>
+                  </div>
+                  <div className="rounded-lg bg-[var(--surface-soft)] p-2.5">
+                    <div className="type-caption text-[10px]">TB/lệnh</div>
+                    <div className="mt-0.5 font-mono font-bold text-foreground">{formatCurrency(selectedSummary.avgPnL)}</div>
+                  </div>
+                  <div className="rounded-lg bg-[var(--surface-soft)] p-2.5">
+                    <div className="type-caption text-[10px]">Giá trị lớn nhất</div>
+                    <div className="mt-0.5 font-mono font-bold text-foreground">{selectedTopTrade ? compactCurrency(Math.abs(selectedTopTrade.netPnL)) : '—'}</div>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   {selectedTrades.map((trade) => (
-                    <div key={trade.rowNumber} className="rounded-lg border border-[var(--card-border)] bg-foreground/[0.02] p-3 text-[13px]">
+                    <div key={trade.rowNumber} className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-soft)] p-3 text-[13px]">
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <div className="font-semibold text-foreground">{trade.symbol}</div>
                           <div className="type-caption text-[10px]">{trade.strategy || trade.sector || 'Không ghi chú'}</div>
                         </div>
-                        <div className={cn('font-mono font-bold', trade.netPnL >= 0 ? 'text-[var(--win)]' : 'text-[var(--loss)]')}>
-                          {trade.netPnL >= 0 ? '+' : ''}{formatCurrency(trade.netPnL)}
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={getTradeSheetUrl(trade.rowNumber)}
+                            target={settings.sheetId ? '_blank' : '_self'}
+                            rel={settings.sheetId ? 'noreferrer' : undefined}
+                            className="inline-flex items-center gap-1 rounded-md border border-[var(--card-border)] px-2 py-1 text-[10px] font-bold text-[var(--muted)] transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                            title={`Mở dòng ${trade.rowNumber} trên Google Sheet`}
+                          >
+                            Sheet
+                            <ExternalLink size={11} />
+                          </a>
+                          <div className={cn('font-mono font-bold', trade.netPnL >= 0 ? 'text-[var(--win)]' : 'text-[var(--loss)]')}>
+                            {trade.netPnL >= 0 ? '+' : ''}{formatCurrency(trade.netPnL)}
+                          </div>
                         </div>
                       </div>
                     </div>

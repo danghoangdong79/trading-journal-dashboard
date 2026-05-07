@@ -1,5 +1,5 @@
 ﻿import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { Trade, TradingStats, DashboardSettings, AuthState, AuthSettings, ThemeMode } from './types.ts';
+import type { Trade, TradingStats, DashboardSettings, AuthState, AuthSettings, RiskSettings, ThemeMode } from './types.ts';
 import { AnalyticsService } from './services/analyticsService.ts';
 import { GoogleSheetsService } from './services/googleSheetsService.ts';
 import { DEMO_TRADES } from './constants.ts';
@@ -20,13 +20,23 @@ interface AppContextType {
 }
 
 const DEFAULT_SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I';
-const DEFAULT_APP_NAME = 'Phương Trần';
+const BRAND_NAME = 'Dahodo.Journal';
+const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 
 const defaultAuthSettings: AuthSettings = {
   enabled: true,
-  username: 'Phương Trần',
+  username: DEFAULT_CUSTOMER_NAME,
   passwordHash: 'admin123',
   rememberMe: false,
+};
+
+const defaultRiskSettings: RiskSettings = {
+  stockCapital: 500_000_000,
+  derivativesCapital: 100_000_000,
+  maxRiskPerTradePct: 0.02,
+  monthlyTargetPct: 0.05,
+  minRewardRisk: 2,
+  maxDrawdownPct: 0.15,
 };
 
 const defaultSettings: DashboardSettings = {
@@ -34,7 +44,8 @@ const defaultSettings: DashboardSettings = {
   apiKey: '',
   isDemoMode: false,
   auth: defaultAuthSettings,
-  appName: DEFAULT_APP_NAME,
+  appName: DEFAULT_CUSTOMER_NAME,
+  risk: defaultRiskSettings,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -50,11 +61,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...defaultSettings,
         ...parsed,
         auth: { ...defaultAuthSettings, ...(parsed.auth || {}) },
+        risk: { ...defaultRiskSettings, ...(parsed.risk || {}) },
       };
 
       if (!merged.sheetId) merged.sheetId = DEFAULT_SHEET_ID;
-      if (merged.appName === 'Phương Trần' || !merged.appName) merged.appName = DEFAULT_APP_NAME;
-      if (merged.auth.username === 'admin' || merged.auth.username === 'KhangHang1' || !merged.auth.username) merged.auth.username = DEFAULT_APP_NAME;
+      if (!merged.appName || merged.appName === 'KhangHang1') merged.appName = DEFAULT_CUSTOMER_NAME;
+      if (merged.auth.username === 'admin' || merged.auth.username === 'KhangHang1' || !merged.auth.username) merged.auth.username = merged.appName || DEFAULT_CUSTOMER_NAME;
       if (!merged.apiKey && merged.sheetId === DEFAULT_SHEET_ID) merged.isDemoMode = false;
 
       return merged;
@@ -128,6 +140,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...settings.auth,
         ...(newSettings.auth || {}),
       },
+      risk: {
+        ...settings.risk,
+        ...(newSettings.risk || {}),
+      },
     };
 
     setSettings(updated);
@@ -155,9 +171,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setStats(AnalyticsService.calculateStats(nextTrades));
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : 'Không thể tải dữ liệu giao dịch.';
-      setError(message);
-      setTrades([]);
-      setStats(AnalyticsService.calculateStats([]));
+      setError(`${message} Bảng điều khiển đang hiển thị dữ liệu mẫu để bạn vẫn xem được giao diện.`);
+      setTrades(DEMO_TRADES);
+      setStats(AnalyticsService.calculateStats(DEMO_TRADES));
     } finally {
       setIsLoading(false);
     }
@@ -178,6 +194,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       void refreshData();
     }
   }, [settings.sheetId, settings.apiKey, settings.isDemoMode, authState.isAuthenticated]);
+
+  useEffect(() => {
+    document.title = `${settings.appName || DEFAULT_CUSTOMER_NAME} | ${BRAND_NAME}`;
+  }, [settings.appName]);
 
   return (
     <AppContext.Provider
@@ -208,3 +228,6 @@ export function useApp() {
   }
   return context;
 }
+
+
+

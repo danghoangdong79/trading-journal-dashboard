@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Activity, Search, Target, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { Activity, ExternalLink, Search, Target, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card, KpiCard } from '../components/ui/Card.tsx';
 import { cn, formatCurrency, formatPercent } from '../lib/utils.ts';
@@ -7,10 +7,16 @@ import { STATUS_CONFIG } from '../constants.ts';
 import { AnalyticsService } from '../services/analyticsService.ts';
 
 export default function Journal() {
-  const { trades, isLoading } = useApp();
+  const { settings, trades, isLoading } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAsset, setFilterAsset] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [filterStrategy, setFilterStrategy] = useState('All');
+
+  const strategies = useMemo(
+    () => Array.from(new Set<string>(trades.map((trade) => trade.strategy).filter((strategy): strategy is string => Boolean(strategy)))).sort((left, right) => left.localeCompare(right, 'vi')),
+    [trades],
+  );
 
   const filteredAsc = useMemo(
     () =>
@@ -23,17 +29,19 @@ export default function Journal() {
           trade.sector.toLowerCase().includes(keyword);
         const matchesAsset = filterAsset === 'All' || trade.assetType === filterAsset;
         const matchesStatus = filterStatus === 'All' || trade.status === filterStatus;
-        return matchesSearch && matchesAsset && matchesStatus;
+        const matchesStrategy = filterStrategy === 'All' || trade.strategy === filterStrategy;
+        return matchesSearch && matchesAsset && matchesStatus && matchesStrategy;
       }),
-    [filterAsset, filterStatus, searchTerm, trades],
+    [filterAsset, filterStatus, filterStrategy, searchTerm, trades],
   );
 
   const filteredTrades = useMemo(() => filteredAsc.slice().reverse(), [filteredAsc]);
   const summary = useMemo(() => AnalyticsService.summarizeTrades(filteredAsc), [filteredAsc]);
   const topSymbol = useMemo(() => AnalyticsService.groupPnL(filteredAsc, (trade) => trade.symbol)[0], [filteredAsc]);
+  const getSheetRowUrl = (rowNumber: number) => `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#gid=0&range=A${rowNumber}:X${rowNumber}`;
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-5">
+    <div className="mx-auto max-w-[1280px] space-y-5">
       {/* Search & Filters */}
       <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center">
         <div className="relative w-full flex-1">
@@ -46,7 +54,7 @@ export default function Journal() {
             className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] py-2 pl-9 pr-4 text-[13px] transition-all focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40 placeholder:text-[var(--muted)]"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <select value={filterAsset} onChange={(event) => setFilterAsset(event.target.value)} className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-[12px] focus:outline-none">
             <option value="All">Tất cả tài sản</option>
             <option value="Phái sinh">Phái sinh</option>
@@ -59,13 +67,18 @@ export default function Journal() {
             <option value="Hòa">Hòa</option>
             <option value="Đang mở">Đang mở</option>
           </select>
+          <select value={filterStrategy} onChange={(event) => setFilterStrategy(event.target.value)} className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-[12px] focus:outline-none">
+            <option value="All">Tất cả chiến lược</option>
+            {strategies.map((strategy) => <option key={strategy} value={strategy}>{strategy}</option>)}
+          </select>
           <button
             onClick={() => {
               setSearchTerm('');
               setFilterAsset('All');
               setFilterStatus('All');
+              setFilterStrategy('All');
             }}
-            className="flex items-center justify-center rounded-lg border border-[var(--card-border)] p-2 text-[var(--muted)] transition-colors hover:bg-foreground/5 hover:text-foreground"
+            className="flex items-center justify-center rounded-lg border border-[var(--card-border)] p-2 text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-foreground"
             title="Xóa bộ lọc"
           >
             <X size={15} />
@@ -74,41 +87,42 @@ export default function Journal() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <KpiCard title="PnL theo bộ lọc" value={formatCurrency(summary.netPnL)} icon={Activity} delta={`${summary.totalTrades} lệnh`} deltaType={summary.netPnL >= 0 ? 'positive' : 'negative'} isLoading={isLoading} />
-        <KpiCard title="Win rate" value={formatPercent(summary.winRate)} icon={Target} delta={`${summary.winningTrades}/${summary.closedTrades} đóng`} isLoading={isLoading} />
-        <KpiCard title="Lãi TB" value={formatCurrency(summary.avgWin)} icon={TrendingUp} delta={`${summary.winningTrades} lệnh thắng`} deltaType="positive" isLoading={isLoading} />
-        <KpiCard title="Lỗ TB" value={formatCurrency(summary.avgLoss)} icon={TrendingDown} delta={`${summary.losingTrades} lệnh thua`} deltaType="negative" isLoading={isLoading} />
-        <KpiCard title="Mã nổi bật" value={topSymbol?.name || '—'} icon={Activity} delta={topSymbol ? formatCurrency(topSymbol.pnl) : 'Chưa có'} deltaType={(topSymbol?.pnl || 0) >= 0 ? 'positive' : 'negative'} isLoading={isLoading} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <KpiCard title="Lãi/Lỗ theo lọc" value={formatCurrency(summary.netPnL)} icon={Activity} delta={`${summary.totalTrades} lệnh`} deltaType={summary.netPnL >= 0 ? 'positive' : 'negative'} isLoading={isLoading} description="Tổng lãi/lỗ ròng của các giao dịch đang khớp với bộ lọc hiện tại." />
+        <KpiCard title="Tỉ lệ thắng" value={formatPercent(summary.winRate)} icon={Target} delta={`${summary.winningTrades}/${summary.closedTrades} đóng`} isLoading={isLoading} description="Tỉ lệ lệnh thắng trên tổng số lệnh đã đóng trong kết quả lọc." />
+        <KpiCard title="Lãi TB" value={formatCurrency(summary.avgWin)} icon={TrendingUp} delta={`${summary.winningTrades} lệnh thắng`} deltaType="positive" isLoading={isLoading} description="Lãi trung bình của các lệnh thắng trong kết quả lọc." />
+        <KpiCard title="Lỗ TB" value={formatCurrency(summary.avgLoss)} icon={TrendingDown} delta={`${summary.losingTrades} lệnh thua`} deltaType="negative" isLoading={isLoading} description="Lỗ trung bình của các lệnh thua trong kết quả lọc." />
+        <KpiCard title="Mã nổi bật" value={topSymbol?.name || '—'} icon={Activity} delta={topSymbol ? formatCurrency(topSymbol.pnl) : 'Chưa có'} deltaType={(topSymbol?.pnl || 0) >= 0 ? 'positive' : 'negative'} isLoading={isLoading} description="Mã giao dịch có tổng lãi/lỗ cao nhất trong kết quả lọc." />
       </div>
 
       {/* Trade Table */}
       <Card className="overflow-hidden !p-0">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left whitespace-nowrap">
-            <thead className="border-b border-[var(--card-border)] bg-foreground/[0.02]">
+            <thead className="border-b border-[var(--card-border)] bg-[var(--surface-soft)]">
               <tr className="type-title text-[10px]">
-                <th className="px-4 py-3 font-semibold sm:px-5">Status</th>
+                <th className="px-4 py-3 font-semibold sm:px-5">Trạng thái</th>
                 <th className="px-4 py-3 font-semibold sm:px-5">Mã / Tài sản</th>
                 <th className="px-4 py-3 font-semibold text-center sm:px-5">Giá vào / đóng</th>
                 <th className="px-4 py-3 font-semibold text-center sm:px-5">Khối lượng</th>
                 <th className="px-4 py-3 font-semibold text-right sm:px-5">Lãi/lỗ ròng</th>
                 <th className="px-4 py-3 font-semibold text-center sm:px-5">Chiến lược</th>
                 <th className="px-4 py-3 font-semibold text-center sm:px-5">Ngày mở</th>
+                <th className="px-4 py-3 font-semibold text-center sm:px-5">Sheet</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--card-border)]">
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className="animate-pulse">
-                    <td colSpan={7} className="px-4 py-5 sm:px-5"><div className="h-4 w-full rounded bg-foreground/5" /></td>
+                    <td colSpan={8} className="px-4 py-5 sm:px-5"><div className="h-4 w-full rounded bg-[var(--surface-strong)]" /></td>
                   </tr>
                 ))
               ) : filteredTrades.length > 0 ? (
                 filteredTrades.map((trade) => {
                   const statusInfo = STATUS_CONFIG[trade.status];
                   return (
-                    <tr key={trade.rowNumber} className="group transition-colors hover:bg-foreground/[0.02]">
+                    <tr key={trade.rowNumber} className="group transition-colors hover:bg-[var(--surface-hover)]">
                       <td className="px-4 py-3 sm:px-5">
                         <div className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold', statusInfo?.color || 'bg-gray-500/10 text-[var(--muted)]')}>
                           {statusInfo?.icon && <statusInfo.icon size={10} />}{trade.status}
@@ -129,14 +143,26 @@ export default function Journal() {
                       </td>
                       <td className="px-4 py-3 text-center font-mono text-[12px] text-foreground sm:px-5">{trade.volume.toLocaleString('vi-VN')}</td>
                       <td className={cn('px-4 py-3 text-right font-mono text-[12px] font-bold sm:px-5', trade.netPnL >= 0 ? 'text-[var(--win)]' : 'text-[var(--loss)]')}>{trade.netPnL >= 0 ? '+' : ''}{formatCurrency(trade.netPnL)}</td>
-                      <td className="px-4 py-3 text-center sm:px-5"><span className="rounded-md bg-foreground/[0.04] px-2 py-0.5 text-[11px] text-[var(--muted)]">{trade.strategy || '—'}</span></td>
+                      <td className="px-4 py-3 text-center sm:px-5"><span className="rounded-md bg-[var(--surface-soft)] px-2 py-0.5 text-[11px] text-[var(--muted)]">{trade.strategy || '—'}</span></td>
                       <td className="px-4 py-3 text-center font-mono text-[10px] text-[var(--muted)] sm:px-5">{trade.openDate} {trade.openTime}</td>
+                      <td className="px-4 py-3 text-center sm:px-5">
+                        <a
+                          href={getSheetRowUrl(trade.rowNumber)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-[var(--card-border)] px-2 py-1 text-[10px] font-bold text-[var(--muted)] transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
+                          title={`Mở JOURNAL dòng ${trade.rowNumber} trên Google Sheet`}
+                        >
+                          Dòng {trade.rowNumber}
+                          <ExternalLink size={11} />
+                        </a>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-[var(--muted)] sm:px-5">
+                  <td colSpan={8} className="px-4 py-10 text-center text-[var(--muted)] sm:px-5">
                     <p className="mb-1 text-base font-medium">Chưa có giao dịch phù hợp</p>
                     <p className="type-caption">Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc.</p>
                   </td>

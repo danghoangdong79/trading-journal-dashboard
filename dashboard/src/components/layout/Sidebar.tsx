@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { BarChart3, CalendarDays, Gauge, Monitor, Moon, NotebookText, PanelLeftClose, PanelLeftOpen, Settings, ShieldAlert, Sun } from 'lucide-react';
+import { BarChart3, BookOpenText, CalendarDays, ChevronLeft, ChevronRight, Gauge, Monitor, Moon, NotebookText, Settings, ShieldAlert, Sun } from 'lucide-react';
 import { cn } from '../../lib/utils.ts';
 import { useApp } from '../../context.tsx';
+
+const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 
 const navItems = [
   { path: '/overview', label: 'Tổng quan', icon: Gauge },
@@ -11,6 +13,7 @@ const navItems = [
   { path: '/analytics', label: 'Phân tích', icon: BarChart3 },
   { path: '/calendar', label: 'Lịch PnL', icon: CalendarDays },
   { path: '/risk', label: 'Rủi ro', icon: ShieldAlert },
+  { path: '/guide', label: 'Hướng dẫn', icon: BookOpenText },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 
@@ -36,56 +39,45 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isM
   };
 
   const ThemeIcon = theme === 'system' ? Monitor : theme === 'dark' ? Moon : Sun;
-  const themeLabel = theme === 'system' ? 'Hệ thống' : theme === 'dark' ? 'Tối' : 'Sáng';
-  const initials = (settings.appName || 'PT').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const themeLabel = theme === 'system' ? 'Theo hệ thống' : theme === 'dark' ? 'Tối' : 'Sáng';
+  const customerName = settings.appName || DEFAULT_CUSTOMER_NAME;
 
   return (
     <>
-      {/* Mobile overlay */}
       <div
         className={cn(
-          'fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity md:hidden',
-          isMobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+          'fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity md:hidden',
+          isMobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={() => setIsMobileMenuOpen(false)}
       />
 
       <motion.aside
         initial={false}
-        animate={{ width: isCollapsed ? 60 : 220 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
+        animate={{ width: isCollapsed ? 86 : 260 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
         className={cn(
           'fixed left-0 top-0 z-50 flex h-screen shrink-0 -translate-x-full flex-col overflow-hidden',
-          'border-r border-[var(--card-border)] bg-[var(--sidebar-bg)] transition-colors duration-200',
+          'border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] text-[var(--sidebar-fg)] transition-colors duration-300',
           'md:sticky md:translate-x-0',
-          isMobileMenuOpen && 'translate-x-0'
+          isMobileMenuOpen && 'translate-x-0',
         )}
       >
-        {/* Logo + Collapse toggle */}
-        <div className={cn('flex w-full items-center border-b border-[var(--card-border)]', isCollapsed ? 'justify-center px-2 py-3' : 'justify-between px-3 py-3')}>
-          <div className={cn('flex items-center', isCollapsed ? 'justify-center' : 'gap-2')}>
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--accent)] text-[10px] font-bold text-white">
-              {initials}
+        <div className={cn('flex w-full items-center px-5 py-6', isCollapsed ? 'justify-center' : 'justify-between')}>
+          <div className={cn('flex min-w-0 items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-[0_10px_30px_-18px_rgba(255,255,255,0.65)] ring-1 ring-black/5 dark:ring-white/10">
+              <img src="/logo.svg" alt="Dahodo" className="h-7 w-7 object-contain" />
             </div>
             {!isCollapsed && (
-              <span className="text-[13px] font-semibold tracking-tight text-foreground truncate">
-                {settings.appName || 'Phương Trần'}
-              </span>
+              <div className="min-w-0">
+                <div className="truncate text-[15px] font-extrabold leading-tight tracking-[-0.03em] text-[var(--sidebar-fg)]">Dahodo.Journal</div>
+                <div className="mt-1 truncate text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-[var(--accent)]">Khách hàng: {customerName}</div>
+              </div>
             )}
           </div>
-          {!isCollapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="hidden rounded-md p-1 text-[var(--muted)] transition-colors hover:bg-foreground/5 hover:text-foreground md:flex"
-              title="Thu nhỏ sidebar"
-            >
-              <PanelLeftClose size={15} />
-            </button>
-          )}
         </div>
 
-        {/* Navigation */}
-        <nav className="mt-1 w-full flex-1 space-y-px px-2">
+        <nav className="mt-1 w-full flex-1 space-y-1 px-3">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -93,22 +85,20 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isM
               title={isCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 cn(
-                  'group relative flex items-center rounded-md py-[7px] transition-all duration-150',
-                  isCollapsed ? 'justify-center px-0' : 'gap-2 px-2.5',
+                  'group relative flex items-center rounded-xl py-2.5 transition-all duration-200',
+                  isCollapsed ? 'justify-center px-0' : 'gap-3 px-3',
                   isActive
-                    ? 'bg-[var(--accent-soft)] font-semibold text-[var(--accent)]'
-                    : 'text-[var(--muted)] hover:bg-foreground/[0.03] hover:text-foreground'
+                    ? 'bg-[var(--sidebar-active)] font-semibold text-[var(--sidebar-active-fg)] shadow-[inset_3px_0_0_var(--accent)]'
+                    : 'text-[var(--sidebar-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--sidebar-fg)]',
                 )
               }
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={17} strokeWidth={isActive ? 2 : 1.5} />
-                  {!isCollapsed && (
-                    <span className="text-[12.5px] tracking-tight">{item.label}</span>
-                  )}
+                  <item.icon size={19} strokeWidth={isActive ? 2.35 : 1.7} />
+                  {!isCollapsed && <span className="text-[13.5px] font-bold tracking-[-0.01em]">{item.label}</span>}
                   {isCollapsed && (
-                    <div className="pointer-events-none absolute left-[52px] z-50 rounded-md bg-foreground px-2 py-1 text-[10px] font-semibold whitespace-nowrap text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    <div className="pointer-events-none absolute left-[calc(100%+10px)] top-1/2 z-[70] -translate-y-1/2 whitespace-nowrap rounded-lg border border-[var(--card-border)] bg-[var(--card-elevated)] px-2.5 py-1.5 text-[11px] font-semibold text-foreground opacity-0 shadow-xl transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100">
                       {item.label}
                     </div>
                   )}
@@ -118,33 +108,25 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isM
           ))}
         </nav>
 
-        {/* Bottom: Theme toggle + Expand */}
-        <div className={cn('w-full border-t border-[var(--card-border)] p-1.5', isCollapsed ? 'space-y-px' : 'space-y-px')}>
-          {/* Theme toggle */}
+        <div className="w-full space-y-2 p-4">
           <button
             onClick={cycleTheme}
             className={cn(
-              'flex w-full items-center rounded-md p-2 text-[var(--muted)] transition-all hover:bg-foreground/[0.04] hover:text-foreground',
-              isCollapsed ? 'justify-center' : 'gap-2 px-2.5'
+              'flex w-full items-center rounded-xl p-2.5 text-[var(--sidebar-muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-[var(--sidebar-fg)]',
+              isCollapsed ? 'justify-center' : 'justify-center gap-3',
             )}
-            title={`Giao diện: ${themeLabel}`}
+            title={themeLabel}
           >
-            <ThemeIcon size={15} />
-            {!isCollapsed && (
-              <span className="text-[12px] font-medium">{themeLabel}</span>
-            )}
+            <ThemeIcon size={18} />
+            {!isCollapsed && <span className="text-[13px] font-semibold">{themeLabel}</span>}
           </button>
-
-          {/* Expand button (when collapsed) */}
-          {isCollapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="flex w-full items-center justify-center rounded-md p-2 text-[var(--muted)] transition-all hover:bg-foreground/[0.04] hover:text-foreground"
-              title="Mở rộng sidebar"
-            >
-              <PanelLeftOpen size={15} />
-            </button>
-          )}
+          <button
+            onClick={toggleSidebar}
+            className="hidden w-full items-center justify-center rounded-xl p-2 text-[var(--sidebar-muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-[var(--sidebar-fg)] md:flex"
+            title={isCollapsed ? 'Mở rộng sidebar' : 'Thu nhỏ sidebar'}
+          >
+            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
         </div>
       </motion.aside>
     </>

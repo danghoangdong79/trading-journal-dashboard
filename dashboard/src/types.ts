@@ -31,6 +31,7 @@ export interface Trade {
   sector: string;
   entryDateTime: Date | null;
   exitDateTime: Date | null;
+  cashFlow: number;
   equity: number;
 }
 
@@ -61,10 +62,20 @@ export interface AuthState {
   username: string | null;
 }
 
+export interface RiskSettings {
+  stockCapital: number;
+  derivativesCapital: number;
+  maxRiskPerTradePct: number;
+  monthlyTargetPct: number;
+  minRewardRisk: number;
+  maxDrawdownPct: number;
+}
+
 export interface DashboardSettings {
   sheetId: string;
   apiKey: string;
   isDemoMode: boolean;
   auth: AuthSettings;
   appName?: string;
+  risk: RiskSettings;
 }

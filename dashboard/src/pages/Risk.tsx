@@ -1,5 +1,5 @@
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { AlertCircle, CheckCircle2, Flame, ShieldCheck, Target, TrendingDown, ZapOff } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card, KpiCard } from '../components/ui/Card.tsx';
@@ -17,9 +17,11 @@ function longestStreak(values: boolean[]) {
 }
 
 export default function Risk() {
-  const { stats, trades } = useApp();
-  const [lossLimit, setLossLimit] = useState(50_000_000);
-  const [drawdownLimit, setDrawdownLimit] = useState(0.15);
+  const { settings, stats, trades } = useApp();
+  const riskConfig = settings.risk;
+  const accountCapital = riskConfig.stockCapital + riskConfig.derivativesCapital;
+  const lossLimit = accountCapital * riskConfig.maxRiskPerTradePct;
+  const drawdownLimit = riskConfig.maxDrawdownPct;
 
   const risk = useMemo(() => {
     const closed = trades.filter((trade) => trade.status !== 'Đang mở');
@@ -41,11 +43,11 @@ export default function Risk() {
     { active: (stats?.maxDrawdown || 0) > drawdownLimit, title: 'Drawdown vượt ngưỡng', text: `Drawdown hiện tại ${formatPercent(stats?.maxDrawdown || 0)} cao hơn giới hạn ${formatPercent(drawdownLimit)}.` },
     { active: risk.lossStreak >= 3, title: 'Chuỗi thua kéo dài', text: `Đang ghi nhận chuỗi thua tối đa ${risk.lossStreak} lệnh. Nên giảm quy mô hoặc nghỉ giao dịch.` },
     { active: risk.lossLimitBreaches.length > 0, title: 'Có lệnh vượt giới hạn lỗ', text: `${risk.lossLimitBreaches.length} lệnh có mức lỗ lớn hơn ${formatCurrency(lossLimit)}.` },
-    { active: risk.riskReward < 1 && risk.summary.losingTrades > 0, title: 'Reward/Risk yếu', text: `Lãi trung bình chưa bù được lỗ trung bình. R/R hiện tại ${risk.riskReward.toFixed(2)}.` },
+    { active: risk.riskReward < riskConfig.minRewardRisk && risk.summary.losingTrades > 0, title: 'Reward/Risk yếu', text: `R/R hiện tại ${risk.riskReward.toFixed(2)} thấp hơn mục tiêu ${riskConfig.minRewardRisk.toFixed(2)}.` },
   ];
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-6">
       {/* KPI Row */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <KpiCard title="Risk score" value={`${risk.score.toFixed(0)}/100`} icon={ShieldCheck} delta={risk.score >= 70 ? 'Ổn định' : risk.score >= 45 ? 'Cần kiểm soát' : 'Rủi ro cao'} deltaType={risk.score >= 70 ? 'positive' : risk.score >= 45 ? 'neutral' : 'negative'} />
@@ -57,17 +59,21 @@ export default function Risk() {
 
       {/* Risk Controls + Warnings */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[340px_1fr]">
-        <Card title="Bộ lọc rủi ro" subtitle="Điều chỉnh ngưỡng để xem cảnh báo tức thời.">
+        <Card title="Bộ lọc rủi ro" subtitle="Đọc từ Cài đặt, tương ứng block CONFIG!E1:G7.">
           <div className="space-y-5">
-            <label className="block">
+            <div className="block">
               <div className="mb-2 flex items-center justify-between text-[13px]"><span className="text-[var(--muted)]">Giới hạn lỗ/lệnh</span><span className="font-mono font-bold text-foreground">{formatCurrency(lossLimit)}</span></div>
-              <input type="range" min={5_000_000} max={120_000_000} step={5_000_000} value={lossLimit} onChange={(event) => setLossLimit(Number(event.target.value))} className="w-full" />
-            </label>
-            <label className="block">
+              <p className="type-caption text-[11px]">{formatPercent(riskConfig.maxRiskPerTradePct)} x tổng vốn {formatCurrency(accountCapital)}.</p>
+            </div>
+            <div className="block">
               <div className="mb-2 flex items-center justify-between text-[13px]"><span className="text-[var(--muted)]">Ngưỡng drawdown</span><span className="font-mono font-bold text-foreground">{formatPercent(drawdownLimit)}</span></div>
-              <input type="range" min={0.03} max={0.4} step={0.01} value={drawdownLimit} onChange={(event) => setDrawdownLimit(Number(event.target.value))} className="w-full" />
-            </label>
-            <div className="rounded-lg bg-foreground/[0.03] p-3 text-[12px] text-[var(--muted)]">
+              <p className="type-caption text-[11px]">Cập nhật tại Cài đặt để toàn dashboard dùng cùng một ngưỡng.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[12px]">
+              <div className="rounded-lg bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">Mục tiêu tháng</div><div className="font-mono font-bold text-foreground">{formatPercent(riskConfig.monthlyTargetPct)}</div></div>
+              <div className="rounded-lg bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">RR tối thiểu</div><div className="font-mono font-bold text-foreground">{riskConfig.minRewardRisk.toFixed(2)}</div></div>
+            </div>
+            <div className="rounded-lg bg-[var(--surface-soft)] p-3 text-[12px] text-[var(--muted)]">
               <div className="type-title text-[10px] text-foreground mb-2">Cơ sở đánh giá</div>
               <ul className="space-y-1.5 list-disc pl-4">
                 <li>Max drawdown và mức hồi vốn cần thiết.</li>
@@ -99,7 +105,7 @@ export default function Risk() {
         <Card title="Top lệnh cần review">
           <div className="space-y-2">
             {risk.losses.slice().sort((a, b) => a.netPnL - b.netPnL).slice(0, 6).map((trade) => (
-              <div key={trade.rowNumber} className="flex items-center justify-between rounded-lg bg-foreground/[0.03] p-3 text-[13px]">
+              <div key={trade.rowNumber} className="flex items-center justify-between rounded-lg bg-[var(--surface-soft)] p-3 text-[13px]">
                 <div>
                   <div className="font-semibold text-foreground">{trade.symbol}</div>
                   <div className="type-caption text-[10px]">{trade.strategy} · {trade.openDate}</div>
@@ -112,7 +118,7 @@ export default function Risk() {
         <Card title="Lệnh tốt để học lại">
           <div className="space-y-2">
             {risk.closed.slice().sort((a, b) => b.netPnL - a.netPnL).slice(0, 6).map((trade) => (
-              <div key={trade.rowNumber} className="flex items-center justify-between rounded-lg bg-foreground/[0.03] p-3 text-[13px]">
+              <div key={trade.rowNumber} className="flex items-center justify-between rounded-lg bg-[var(--surface-soft)] p-3 text-[13px]">
                 <div>
                   <div className="font-semibold text-foreground">{trade.symbol}</div>
                   <div className="type-caption text-[10px]">{trade.strategy} · {trade.openDate}</div>
