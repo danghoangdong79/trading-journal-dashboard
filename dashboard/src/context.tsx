@@ -1,9 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+﻿import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Trade, TradingStats, DashboardSettings, AuthState, AuthSettings, RiskSettings, ThemeMode } from './types.ts';
 import { AnalyticsService } from './services/analyticsService.ts';
 import { GoogleSheetsService } from './services/googleSheetsService.ts';
 import { DEMO_TRADES } from './constants.ts';
-import { ADMIN_PASSWORD_HASH, hashPassword, isLegacyPlaintext, verifyPassword } from './lib/utils.ts';
 
 interface AppContextType {
   trades: Trade[];
@@ -14,7 +13,7 @@ interface AppContextType {
   updateSettings: (newSettings: Partial<DashboardSettings>) => void;
   refreshData: () => Promise<void>;
   authState: AuthState;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => boolean;
   logout: () => void;
   theme: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
@@ -27,7 +26,7 @@ const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 const defaultAuthSettings: AuthSettings = {
   enabled: true,
   username: 'admin',
-  passwordHash: ADMIN_PASSWORD_HASH,
+  passwordHash: 'admin',
   rememberMe: false,
 };
 
@@ -68,10 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!merged.sheetId) merged.sheetId = DEFAULT_SHEET_ID;
       if (!merged.appName || merged.appName === 'KhangHang1') merged.appName = DEFAULT_CUSTOMER_NAME;
       if (merged.auth.username === 'KhangHang1' || !merged.auth.username) merged.auth.username = defaultAuthSettings.username;
-      // Migrate legacy plaintext passwords → use default SHA-256 hash
-      if (!merged.auth.passwordHash || merged.auth.passwordHash === 'admin123') {
-        merged.auth.passwordHash = ADMIN_PASSWORD_HASH;
-      }
+      if (merged.auth.passwordHash === 'admin123' || !merged.auth.passwordHash) merged.auth.passwordHash = defaultAuthSettings.passwordHash;
       if (!merged.apiKey && merged.sheetId === DEFAULT_SHEET_ID) merged.isDemoMode = false;
 
       return merged;
@@ -118,22 +114,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  // Migrate legacy plaintext password hashes on mount
-  useEffect(() => {
-    if (isLegacyPlaintext(settings.auth.passwordHash)) {
-      const legacyPlain = settings.auth.passwordHash;
-      void hashPassword(legacyPlain).then((hashed) => {
-        updateSettings({ auth: { ...settings.auth, passwordHash: hashed } });
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = (username: string, password: string) => {
     const normalizedUsername = username.trim();
-    if (normalizedUsername !== settings.auth.username) return false;
-    const match = await verifyPassword(password, settings.auth.passwordHash);
-    if (!match) return false;
+    if (normalizedUsername !== settings.auth.username || password !== settings.auth.passwordHash) return false;
     setAuthState({ isAuthenticated: true, username: settings.auth.username });
     if (settings.auth.rememberMe) {
       localStorage.setItem('kh1_auth', 'true');

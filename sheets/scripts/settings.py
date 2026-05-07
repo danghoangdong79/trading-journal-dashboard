@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-CREDENTIALS_DIR = Path(os.getenv("KHANGHANG_CREDENTIALS_DIR", ROOT_DIR / "credential"))
+CREDENTIALS_DIR = Path(os.getenv("KHANGHANG_CREDENTIALS_DIR", ROOT_DIR / "credentials"))
 TEMPLATES_DIR = ROOT_DIR / "sheets" / "templates"
 
 DEFAULT_SHEET_ID = "1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I"
@@ -37,4 +37,3 @@ def add_safety_args(parser: argparse.ArgumentParser):
     parser.add_argument("--confirm", action="store_true", help="Allow write/destructive actions")
     parser.add_argument("--dry-run", action="store_true", help="Print target action without writing")
     return parser
-

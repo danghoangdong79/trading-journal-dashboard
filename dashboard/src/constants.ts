@@ -42,8 +42,7 @@ export const DEMO_TRADES: Trade[] = [
     sector: 'VN30',
     entryDateTime: new Date('2024-05-01T09:30:00'),
     exitDateTime: new Date('2024-05-01T10:45:00'),
-    cashFlow: 200000000,
-    equity: 202325000,
+    equity: 2325000,
   },
   {
     rowNumber: 3,
@@ -73,7 +72,6 @@ export const DEMO_TRADES: Trade[] = [
     sector: 'Công nghệ',
     entryDateTime: new Date('2024-05-02T13:15:00'),
     exitDateTime: new Date('2024-05-02T14:30:00'),
-    cashFlow: 0,
-    equity: 200910000,
+    equity: 910000,
   },
 ];

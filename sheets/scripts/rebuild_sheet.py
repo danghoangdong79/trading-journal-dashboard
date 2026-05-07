@@ -105,15 +105,6 @@ def build_summary_rows():
     ]
 
 
-def build_cashflow_rows():
-    return [
-        ["Ngày", "Tài khoản", "Loại", "Số tiền", "Ghi chú"],
-        ["2025-04-01", "D920568", "Nạp", 50000000, "Bổ sung vốn kiểm thử"],
-        ["2025-09-01", "T271298", "Nạp", 30000000, "Tăng sức mua giai đoạn 2"],
-        ["2026-02-01", "D920568", "Rút", 20000000, "Rút lợi nhuận một phần"],
-    ]
-
-
 def rebuild(sheet_id=SHEET_ID, confirm=False, dry_run=False):
     if not require_confirmation("rebuild all tabs", sheet_id=sheet_id, confirm=confirm, dry_run=dry_run):
         return
@@ -140,7 +131,7 @@ def rebuild(sheet_id=SHEET_ID, confirm=False, dry_run=False):
     ws_setup.update(values=build_setup_rows(), range_name="A1")
 
     ws_formulas = sh.add_worksheet("FORMULAS", rows=2000, cols=87)
-    ws_formulas.update(values=[["CO PHIEU", "PHAI SINH", "CHIEN LUOC", "TAM LY", "LOAI LENH", "", "NHOM CP", "NHOM PS", "TAI KHOAN", "TAI KHOAN LOC", "LOAI DONG TIEN", "", "MATRIX MA GD"]], range_name="A1")
+    ws_formulas.update(values=[["CO PHIEU", "PHAI SINH", "CHIEN LUOC", "TAM LY", "LOAI LENH", "", "NHOM CP", "NHOM PS", "TAI KHOAN", "TAI KHOAN LOC", "", "", "MATRIX MA GD"]], range_name="A1")
     ws_formulas.update(values=[[
         "=FILTER(SETUP!E3:E, SETUP!I3:I=TRUE)",
         "=FILTER(SETUP!O3:O, SETUP!S3:S=TRUE)",
@@ -152,9 +143,7 @@ def rebuild(sheet_id=SHEET_ID, confirm=False, dry_run=False):
         "=FILTER(SETUP!K3:K, SETUP!M3:M=TRUE)",
         "=IFERROR(FILTER(SETUP!AJ3:AJ, SETUP!AL3:AL=TRUE), \"\")",
         "={\"Tat ca\"; IFERROR(FILTER(SETUP!AJ3:AJ, SETUP!AL3:AL=TRUE), \"\")}",
-        "Nạp",
     ]], range_name="A2", value_input_option="USER_ENTERED")
-    ws_formulas.update(values=[["Rút"]], range_name="K3", value_input_option="USER_ENTERED")
     matrix = [[f'=IFERROR(TRANSPOSE(IF(JOURNAL!$C{row}="Cổ phiếu", $A$2:$A, IF(JOURNAL!$C{row}="Phái sinh", $B$2:$B, {{""}}))), "")'] for row in range(2, 102)]
     ws_formulas.update(values=matrix, range_name="M2", value_input_option="USER_ENTERED")
 
@@ -166,9 +155,6 @@ def rebuild(sheet_id=SHEET_ID, confirm=False, dry_run=False):
 
     ws_summary = sh.add_worksheet("SUMMARY", rows=2000, cols=40)
     ws_summary.update(values=build_summary_rows(), range_name="A1", value_input_option="USER_ENTERED")
-
-    ws_cashflow = sh.add_worksheet("CASHFLOW", rows=2000, cols=5)
-    ws_cashflow.update(values=build_cashflow_rows(), range_name="A1", value_input_option="USER_ENTERED")
 
     requests = [
         {"updateSheetProperties": {"properties": {"sheetId": ws_formulas.id, "hidden": True}, "fields": "hidden"}},
@@ -182,9 +168,6 @@ def rebuild(sheet_id=SHEET_ID, confirm=False, dry_run=False):
         set_validation(ws_journal.id, "H", "DATE_IS_VALID", None),
         set_validation(ws_journal.id, "J", "DATE_IS_VALID", None),
         set_validation(ws_journal.id, "V", "ONE_OF_RANGE", ["=FORMULAS!$D$2:$D"]),
-        set_validation(ws_cashflow.id, "A", "DATE_IS_VALID", None, strict=False),
-        set_validation(ws_cashflow.id, "B", "ONE_OF_RANGE", ["=FORMULAS!$I$2:$I"]),
-        set_validation(ws_cashflow.id, "C", "ONE_OF_RANGE", ["=FORMULAS!$K$2:$K$3"]),
     ]
     sheets_api.spreadsheets().batchUpdate(spreadsheetId=sheet_id, body={"requests": requests}).execute()
 

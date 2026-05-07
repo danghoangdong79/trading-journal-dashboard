@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, CheckCircle, Database, ExternalLink, Link2, Lock, LogOut, Save, User } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card } from '../components/ui/Card.tsx';
-import { formatCurrency, formatPercent, hashPassword } from '../lib/utils.ts';
+import { formatCurrency, formatPercent } from '../lib/utils.ts';
 import { cn } from '../lib/utils.ts';
 
 export default function Settings() {
@@ -12,7 +12,7 @@ export default function Settings() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(settings.auth?.enabled ?? true);
   const [username, setUsername] = useState(settings.auth?.username || 'admin');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(settings.auth?.passwordHash || '');
   const [customerName, setCustomerName] = useState(settings.appName || 'Phương Trần');
   const [authSaveSuccess, setAuthSaveSuccess] = useState(false);
   const [riskDraft, setRiskDraft] = useState(settings.risk);
@@ -25,16 +25,9 @@ export default function Settings() {
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
-  const handleSaveAuth = async () => {
+  const handleSaveAuth = () => {
     const nextCustomerName = customerName.trim() || 'Phương Trần';
-    const trimmedPassword = password.trim();
-    // Only hash and update password if user typed a new one
-    let nextPasswordHash = settings.auth.passwordHash;
-    if (trimmedPassword) {
-      nextPasswordHash = await hashPassword(trimmedPassword);
-    }
-    updateSettings({ appName: nextCustomerName, auth: { ...settings.auth, enabled: authEnabled, username: username.trim() || 'admin', passwordHash: nextPasswordHash } });
-    setPassword('');
+    updateSettings({ appName: nextCustomerName, auth: { ...settings.auth, enabled: authEnabled, username: username.trim() || 'admin', passwordHash: password.trim() || 'admin' } });
     setAuthSaveSuccess(true);
     setTimeout(() => setAuthSaveSuccess(false), 3000);
   };
@@ -89,7 +82,7 @@ export default function Settings() {
               </div>
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 type-title text-[10px]"><Lock size={11} />Mật khẩu</label>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Để trống nếu không đổi" className={inputClass} />
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Nhập mật khẩu" className={inputClass} />
               </div>
               <label className="flex items-center justify-between rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3 text-[12px] font-semibold text-foreground">
                 <span>Ghi nhớ đăng nhập trên trình duyệt này</span>

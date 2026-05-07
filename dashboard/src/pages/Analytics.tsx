@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Award, BarChart3, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useApp } from '../context.tsx';
-import { Card, KpiCard } from '../components/ui/Card.tsx';
+import { Card } from '../components/ui/Card.tsx';
 import { AnalyticsService, type GroupPnLItem } from '../services/analyticsService.ts';
 import { formatCurrency, formatPercent } from '../lib/utils.ts';
 import { BarChart, Bar, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -22,132 +21,52 @@ export default function Analytics() {
   const title = activeTab === 'strategy' ? 'Chiến lược' : activeTab === 'sector' ? 'Nhóm ngành' : 'Tâm lý';
   const bestItem = activeData[0];
   const worstItem = activeData.at(-1);
-  const reliableItems = activeData.filter((item) => item.trades >= 3);
-  const mostReliable = reliableItems.slice().sort((left, right) => right.winRate - left.winRate || right.pnl - left.pnl)[0];
-  const negativeItems = activeData.filter((item) => item.pnl < 0);
-  const positiveItems = activeData.filter((item) => item.pnl > 0);
-  const totalGroupedPnl = activeData.reduce((sum, item) => sum + item.pnl, 0);
-  const topContribution = totalGroupedPnl > 0 && bestItem ? bestItem.pnl / totalGroupedPnl : 0;
-  const actionText = worstItem && worstItem.pnl < 0
-    ? `Ưu tiên review ${worstItem.name}: đang kéo hiệu suất xuống ${formatCurrency(Math.abs(worstItem.pnl))}.`
-    : bestItem
-      ? `${bestItem.name} đang dẫn hiệu suất. Kiểm tra lại setup để nhân rộng.`
-      : 'Chưa đủ dữ liệu để tạo khuyến nghị.';
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <div className="type-title mb-2">Trung tâm phân tích</div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">Hiệu suất theo {title.toLowerCase()}</h1>
-          <p className="mt-2 max-w-2xl text-[13px] font-semibold leading-6 text-[var(--muted)]">Tìm nhóm tạo lợi nhuận, nhóm làm giảm hiệu suất và điểm cần review trước phiên giao dịch tiếp theo.</p>
-        </div>
-        <div className="flex w-fit gap-1 rounded-xl border border-[var(--card-border)] bg-[var(--surface-soft)] p-1 shadow-sm">
-          {[
-            { key: 'strategy', label: 'Chiến lược' },
-            { key: 'sector', label: 'Nhóm ngành' },
-            { key: 'mood', label: 'Tâm lý' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as AnalyticsTab)}
-              className={`rounded-lg px-4 py-2 text-[12px] font-bold transition-all ${activeTab === tab.key ? 'bg-[var(--accent)] text-white shadow-sm shadow-blue-600/15' : 'text-[var(--muted)] hover:text-foreground'}`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+    <div className="mx-auto max-w-[1200px] space-y-6">
+      {/* Tab Switcher */}
+      <div className="flex gap-1 rounded-lg bg-foreground/[0.04] p-1 w-fit">
+        {[
+          { key: 'strategy', label: 'Chiến lược' },
+          { key: 'sector', label: 'Nhóm ngành' },
+          { key: 'mood', label: 'Tâm lý' },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key as AnalyticsTab)}
+            className={`rounded-md px-4 py-2 text-[12px] font-semibold transition-all ${activeTab === tab.key ? 'bg-[var(--accent)] text-white shadow-sm' : 'text-[var(--muted)] hover:text-foreground'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard title="Nhóm tốt nhất" value={bestItem?.name || '—'} icon={Award} delta={bestItem ? formatCurrency(bestItem.pnl) : 'Chưa có'} deltaType={(bestItem?.pnl || 0) >= 0 ? 'positive' : 'negative'} description={`Nhóm ${title.toLowerCase()} có tổng PnL cao nhất trong dữ liệu hiện tại.`} />
-        <KpiCard title="Tỉ trọng top" value={formatPercent(topContribution)} icon={BarChart3} delta={bestItem ? bestItem.name : 'Chưa có'} description="Cho biết hiệu suất có đang phụ thuộc quá nhiều vào một nhóm duy nhất hay không." />
-        <KpiCard title="Nhóm âm" value={negativeItems.length} icon={TrendingDown} delta={`${positiveItems.length} nhóm dương`} deltaType={negativeItems.length > positiveItems.length ? 'negative' : 'neutral'} description="Số nhóm đang có tổng PnL âm. Đây là danh sách cần review để giảm rò rỉ lợi nhuận." />
-        <KpiCard title="Ổn định nhất" value={mostReliable?.name || '—'} icon={Target} delta={mostReliable ? formatPercent(mostReliable.winRate) : 'Chưa đủ mẫu'} deltaType={(mostReliable?.winRate || 0) >= 0.5 ? 'positive' : 'neutral'} description="Nhóm có win rate tốt nhất trong các nhóm có tối thiểu 3 giao dịch." />
-      </div>
-
-      <Card className="border-[var(--accent)]/20 bg-[linear-gradient(135deg,var(--accent-soft),transparent_34%),var(--card-bg)]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-[var(--accent-soft)] p-2 text-[var(--accent)]"><AlertTriangle size={18} /></div>
-            <div>
-              <div className="text-[14px] font-extrabold text-foreground">Khuyến nghị review</div>
-              <p className="mt-1 text-[13px] font-semibold leading-6 text-[var(--muted)]">{actionText}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-[12px] sm:min-w-[360px]">
-            <div className="rounded-xl bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">Tổng nhóm</div><div className="mt-1 font-mono font-bold text-foreground">{activeData.length}</div></div>
-            <div className="rounded-xl bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">Có lãi</div><div className="mt-1 font-mono font-bold text-[var(--win)]">{positiveItems.length}</div></div>
-            <div className="rounded-xl bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">Cần xử lý</div><div className="mt-1 font-mono font-bold text-[var(--loss)]">{negativeItems.length}</div></div>
-          </div>
-        </div>
-      </Card>
-
-      <Card title="Tóm tắt hiệu suất" subtitle="Các chỉ số lõi để quyết định nên tăng cường, giảm size hay tiếp tục quan sát">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-xl bg-[var(--surface-soft)] p-3">
-            <div className="type-caption text-[10px]">Kỳ vọng mỗi lệnh</div>
-            <div className="mt-1 font-mono text-[15px] font-bold text-foreground">{formatCurrency(summary.avgPnL)}</div>
-          </div>
-          <div className="rounded-xl bg-[var(--surface-soft)] p-3">
-            <div className="type-caption text-[10px]">Hệ số lợi nhuận</div>
-            <div className="mt-1 font-mono text-[15px] font-bold text-foreground">{Number.isFinite(summary.profitFactor) ? summary.profitFactor.toFixed(2) : '∞'}</div>
-          </div>
-          <div className="rounded-xl bg-[var(--surface-soft)] p-3">
-            <div className="type-caption text-[10px]">Tốt nhất</div>
-            <div className="mt-1 truncate font-mono text-[13px] font-bold text-[var(--win)]">{bestItem ? `${bestItem.name} · ${formatCurrency(bestItem.pnl)}` : '—'}</div>
-          </div>
-          <div className="rounded-xl bg-[var(--surface-soft)] p-3">
-            <div className="type-caption text-[10px]">Kém nhất</div>
-            <div className="mt-1 truncate font-mono text-[13px] font-bold text-[var(--loss)]">{worstItem ? `${worstItem.name} · ${formatCurrency(worstItem.pnl)}` : '—'}</div>
-          </div>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.75fr)]">
-        <Card title={`PnL theo ${title.toLowerCase()}`} subtitle="Top nhóm có đóng góp lớn nhất, tách rõ bên tạo tiền và bên làm mất tiền">
-          <div className="mt-1 h-[320px] w-full sm:h-[380px] xl:h-[420px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr_0.7fr]">
+        <Card title={`PnL theo ${title.toLowerCase()}`}>
+          <div className="mt-2 h-[340px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activeData.slice(0, 10)} layout="vertical" margin={{ top: 6, right: 28, left: 12, bottom: 6 }} barCategoryGap={14}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" horizontal={false} />
-                <XAxis type="number" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} tickFormatter={(value) => `${(Number(value) / 1_000_000).toFixed(0)}M`} />
-                <YAxis type="category" dataKey="name" width={120} tick={{ fill: 'var(--chart-axis)', fontSize: 11, fontWeight: 700 }} />
-                <Tooltip
-                  wrapperClassName="!outline-none"
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const item = payload[0].payload as GroupPnLItem;
-                    return (
-                      <div className="chart-tooltip p-3">
-                        <div className="text-[13px] font-extrabold text-foreground">{item.name}</div>
-                        <div className="mt-1 font-mono text-[13px] font-bold text-foreground">{formatCurrency(item.pnl)}</div>
-                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-semibold text-[var(--muted)]">
-                          <span>{item.trades} giao dịch</span>
-                          <span>{formatPercent(item.winRate)} thắng</span>
-                          <span>TB {formatCurrency(item.avgPnL)}</span>
-                          <span>{item.losses} lệnh thua</span>
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-                <Bar dataKey="pnl" radius={[8, 8, 8, 8]} barSize={22}>
-                  {activeData.slice(0, 10).map((entry) => <Cell key={entry.name} fill={entry.pnl >= 0 ? 'var(--win)' : 'var(--loss)'} />)}
+              <BarChart data={activeData} layout="vertical" margin={{ top: 0, right: 16, left: 16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" horizontal={false} />
+                <XAxis type="number" tick={{ fill: 'var(--muted)', fontSize: 10 }} tickFormatter={(value) => `${(Number(value) / 1_000_000).toFixed(0)}M`} />
+                <YAxis type="category" dataKey="name" width={110} tick={{ fill: 'var(--muted)', fontSize: 10 }} />
+                <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8 }} />
+                <Bar dataKey="pnl" radius={[0, 4, 4, 0]}>
+                  {activeData.map((entry) => <Cell key={entry.name} fill={entry.pnl >= 0 ? 'var(--win)' : 'var(--loss)'} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        <div className="space-y-4 xl:max-h-[512px] xl:overflow-y-auto xl:pr-1">
-          <Card title="Bảng xếp hạng chi tiết" subtitle="Ưu tiên nhóm nhiều mẫu, PnL rõ ràng và win rate ổn định">
-            <div className="space-y-2.5">
+        <div className="space-y-4">
+          <Card title="Phân tích chi tiết">
+            <div className="space-y-3">
               {activeData.map((item) => (
-                <div key={item.name} className="rounded-xl border border-[var(--card-border)] bg-[var(--surface-soft)] p-3.5">
+                <div key={item.name} className="rounded-lg border border-[var(--card-border)] bg-foreground/[0.02] p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h4 className="text-[15px] font-extrabold tracking-[-0.02em] text-foreground">{item.name}</h4>
-                      <div className="mt-0.5 type-caption text-[11px]">{item.trades} giao dịch · tỉ lệ thắng {formatPercent(item.winRate)}</div>
+                      <h4 className="text-base font-bold text-foreground">{item.name}</h4>
+                      <div className="mt-0.5 type-caption text-[10px]">{item.trades} giao dịch · win rate {formatPercent(item.winRate)}</div>
                     </div>
                     <div className={`text-right text-lg font-mono font-bold ${item.pnl >= 0 ? 'text-[var(--win)]' : 'text-[var(--loss)]'}`}>{formatCurrency(item.pnl)}</div>
                   </div>
@@ -160,40 +79,16 @@ export default function Analytics() {
               ))}
             </div>
           </Card>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card title="Nên tập trung" subtitle="Nhóm có PnL dương và số mẫu đáng xem">
-          <div className="space-y-2.5">
-            {positiveItems.slice(0, 5).map((item) => (
-              <div key={item.name} className="flex items-center justify-between rounded-xl bg-[var(--surface-soft)] p-3 text-[13px]">
-                <div><div className="font-bold text-foreground">{item.name}</div><div className="type-caption text-[10px]">{item.trades} lệnh · {formatPercent(item.winRate)}</div></div>
-                <div className="font-mono font-bold text-[var(--win)]">{formatCurrency(item.pnl)}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card title="Cần cắt giảm" subtitle="Nhóm âm nhiều nhất, nên review setup hoặc giảm size">
-          <div className="space-y-2.5">
-            {negativeItems.slice().sort((a, b) => a.pnl - b.pnl).slice(0, 5).map((item) => (
-              <div key={item.name} className="flex items-center justify-between rounded-xl bg-[var(--surface-soft)] p-3 text-[13px]">
-                <div><div className="font-bold text-foreground">{item.name}</div><div className="type-caption text-[10px]">{item.trades} lệnh · {formatPercent(item.winRate)}</div></div>
-                <div className="font-mono font-bold text-[var(--loss)]">{formatCurrency(item.pnl)}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card title="Cần thêm mẫu" subtitle="Nhóm có ít giao dịch, chưa nên kết luận quá sớm">
-          <div className="space-y-2.5">
-            {activeData.filter((item) => item.trades < 3).slice(0, 5).map((item) => (
-              <div key={item.name} className="flex items-center justify-between rounded-xl bg-[var(--surface-soft)] p-3 text-[13px]">
-                <div><div className="font-bold text-foreground">{item.name}</div><div className="type-caption text-[10px]">Mới {item.trades} lệnh</div></div>
-                <div className={`font-mono font-bold ${item.pnl >= 0 ? 'text-[var(--win)]' : 'text-[var(--loss)]'}`}>{formatCurrency(item.pnl)}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
+          <Card title="Snapshot hiệu suất">
+            <div className="space-y-3 text-[13px]">
+              <div className="flex items-center justify-between"><span className="text-[var(--muted)]">Kỳ vọng mỗi lệnh</span><span className="font-mono font-bold text-foreground">{formatCurrency(summary.avgPnL)}</span></div>
+              <div className="flex items-center justify-between"><span className="text-[var(--muted)]">Profit factor</span><span className="font-mono font-bold text-foreground">{Number.isFinite(summary.profitFactor) ? summary.profitFactor.toFixed(2) : '∞'}</span></div>
+              <div className="flex items-center justify-between"><span className="text-[var(--muted)]">Best {title.toLowerCase()}</span><span className="font-mono font-bold text-[var(--win)]">{bestItem ? `${bestItem.name} · ${formatCurrency(bestItem.pnl)}` : '—'}</span></div>
+              <div className="flex items-center justify-between"><span className="text-[var(--muted)]">Worst {title.toLowerCase()}</span><span className="font-mono font-bold text-[var(--loss)]">{worstItem ? `${worstItem.name} · ${formatCurrency(worstItem.pnl)}` : '—'}</span></div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );

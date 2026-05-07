@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AlertCircle, LogIn } from 'lucide-react';
 import { useApp } from '../context.tsx';
@@ -11,7 +11,6 @@ export default function Login() {
   const [username, setUsername] = useState(settings.auth?.username || 'admin');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [remember, setRemember] = useState(settings.auth?.rememberMe || false);
   const customerName = settings.appName || DEFAULT_CUSTOMER_NAME;
 
@@ -19,20 +18,18 @@ export default function Login() {
     return <Navigate to="/overview" replace />;
   }
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    setIsSubmitting(true);
 
     if (remember !== settings.auth.rememberMe) {
       updateSettings({ auth: { ...settings.auth, rememberMe: remember } });
     }
 
-    const success = await login(username, password);
+    const success = login(username, password);
     if (!success) {
       setError(true);
       setPassword('');
     }
-    setIsSubmitting(false);
   };
 
   return (
@@ -78,9 +75,9 @@ export default function Login() {
             <span>{'Ghi nhớ đăng nhập'}</span>
           </label>
 
-          <button type="submit" disabled={isSubmitting} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] py-3 text-[13px] font-extrabold text-white shadow-lg shadow-blue-500/20 transition-all hover:opacity-90 disabled:opacity-50">
+          <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] py-3 text-[13px] font-extrabold text-white shadow-lg shadow-blue-500/20 transition-all hover:opacity-90">
             <LogIn className="h-4 w-4" />
-            {isSubmitting ? 'Đang xác thực...' : 'Đăng nhập'}
+            {'Đăng nhập'}
           </button>
         </form>
       </div>
