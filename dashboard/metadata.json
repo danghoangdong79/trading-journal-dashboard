@@ -1,6 +1,6 @@
 {
-  "name": "KhangHang1 Trading Journal",
-  "description": "Professional trading journal dashboard for VN30F and Vietnamese stocks, synced with Google Sheets.",
+  "name": "Dahodo.Journal",
+  "description": "Professional Dahodo trading journal dashboard for VN30F and Vietnamese stocks, synced with Google Sheets for client workspaces.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "data-visualization",

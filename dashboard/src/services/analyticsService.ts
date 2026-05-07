@@ -21,6 +21,14 @@ export interface DailyPnLItem {
   losses: number;
 }
 
+export interface EquityTimelineItem {
+  key: string;
+  label: string;
+  balance: number;
+  pnl: number;
+  trades: number;
+}
+
 export interface TradeSummary {
   netPnL: number;
   totalTrades: number;
@@ -52,6 +60,14 @@ function parseDatePart(dateStr: string): Date | null {
 
 function formatDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatMonthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatYearKey(date: Date) {
+  return String(date.getFullYear());
 }
 
 export class AnalyticsService {
@@ -163,6 +179,42 @@ export class AnalyticsService {
 
   static getEquityCurve(trades: Trade[]) {
     return trades.map((trade, index) => ({ name: index + 1, date: trade.closeDate || trade.openDate, balance: trade.equity }));
+  }
+
+  static getEquityTimeline(trades: Trade[], mode: 'trade' | 'day' | 'month' | 'year'): EquityTimelineItem[] {
+    if (mode === 'trade') {
+      return trades.map((trade, index) => ({
+        key: String(index + 1),
+        label: `Lệnh ${index + 1}`,
+        balance: trade.equity,
+        pnl: trade.netPnL + trade.cashFlow,
+        trades: 1,
+      }));
+    }
+
+    const map: Record<string, EquityTimelineItem> = {};
+    trades.forEach((trade) => {
+      const date = this.parseTradeDate(trade);
+      if (!date) return;
+
+      const key = mode === 'day' ? formatDateKey(date) : mode === 'month' ? formatMonthKey(date) : formatYearKey(date);
+      const label =
+        mode === 'day'
+          ? date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+          : mode === 'month'
+            ? date.toLocaleDateString('vi-VN', { month: '2-digit', year: 'numeric' })
+            : date.toLocaleDateString('vi-VN', { year: 'numeric' });
+
+      if (!map[key]) {
+        map[key] = { key, label, balance: trade.equity, pnl: 0, trades: 0 };
+      }
+
+      map[key].pnl += trade.netPnL + trade.cashFlow;
+      map[key].trades += 1;
+      map[key].balance = trade.equity;
+    });
+
+    return Object.values(map).sort((left, right) => left.key.localeCompare(right.key));
   }
 
   static getPnLByStrategy(trades: Trade[]) {
