@@ -4,7 +4,13 @@ const SHEET_RANGE = 'JOURNAL!A1:X2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
 const DEFAULT_SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I';
 const INITIAL_CAPITAL = 200_000_000;
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
+const isLocalHost = () => window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const getApiBaseUrl = () => {
+  const configured = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
+  if (configured) return configured;
+  if (!isLocalHost()) return 'https://journal-api.dahodo.com';
+  return '';
+};
 
 interface CashFlowEvent {
   key: string;
@@ -184,8 +190,9 @@ export class GoogleSheetsService {
 
     const normalizedSheetId = sheetId.trim() || DEFAULT_SHEET_ID;
     const normalizedApiKey = apiKey.trim();
-    const canUseLocalProxy = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const canUseBackendProxy = Boolean(API_BASE_URL);
+    const apiBaseUrl = getApiBaseUrl();
+    const canUseLocalProxy = isLocalHost();
+    const canUseBackendProxy = Boolean(apiBaseUrl);
 
     if (!normalizedApiKey && !canUseLocalProxy && !canUseBackendProxy) {
       throw new Error('Cloudflare Pages không có /api/trades nội bộ. Hãy cấu hình VITE_API_BASE_URL tới VPS API hoặc nhập Google Sheets API Key trong Cài đặt.');
@@ -193,7 +200,7 @@ export class GoogleSheetsService {
 
     const url = normalizedApiKey
       ? `https://sheets.googleapis.com/v4/spreadsheets/${normalizedSheetId}/values/${encodeURIComponent(SHEET_RANGE)}?key=${normalizedApiKey}`
-      : `${API_BASE_URL}/api/trades?sheetId=${encodeURIComponent(normalizedSheetId)}`;
+      : `${apiBaseUrl}/api/trades?sheetId=${encodeURIComponent(normalizedSheetId)}`;
     const response = await fetch(url);
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
