@@ -37,7 +37,7 @@ const sections = [
 
 function rangeToUrl(sheetId: string, range: string) {
     const [sheetName, a1Range] = range.split('!');
-    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0&range=${encodeURIComponent(`${sheetName}!${a1Range}`)}`;
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit#range=${encodeURIComponent(`${sheetName}!${a1Range}`)}`;
 }
 
 export default function Guide() {
