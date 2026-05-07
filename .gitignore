@@ -1,4 +1,5 @@
 credentials/
+credential/
 logs/
 scratch/
 __pycache__/
