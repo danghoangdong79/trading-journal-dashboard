@@ -11,7 +11,7 @@ export default function Settings() {
   const [localApiKey, setLocalApiKey] = useState(settings.apiKey);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(settings.auth?.enabled ?? true);
-  const [username, setUsername] = useState(settings.auth?.username || 'Phương Trần');
+  const [username, setUsername] = useState(settings.auth?.username || 'admin');
   const [password, setPassword] = useState(settings.auth?.passwordHash || '');
   const [customerName, setCustomerName] = useState(settings.appName || 'Phương Trần');
   const [authSaveSuccess, setAuthSaveSuccess] = useState(false);
@@ -27,7 +27,7 @@ export default function Settings() {
 
   const handleSaveAuth = () => {
     const nextCustomerName = customerName.trim() || 'Phương Trần';
-    updateSettings({ appName: nextCustomerName, auth: { ...settings.auth, enabled: authEnabled, username: username.trim() || nextCustomerName, passwordHash: password.trim() || 'admin123' } });
+    updateSettings({ appName: nextCustomerName, auth: { ...settings.auth, enabled: authEnabled, username: username.trim() || 'admin', passwordHash: password.trim() || 'admin' } });
     setAuthSaveSuccess(true);
     setTimeout(() => setAuthSaveSuccess(false), 3000);
   };
