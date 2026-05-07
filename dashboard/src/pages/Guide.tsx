@@ -1,6 +1,7 @@
 import { BookOpen, ExternalLink, FileSpreadsheet, KeyRound, Settings, ShieldAlert, Table2 } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card } from '../components/ui/Card.tsx';
+import { buildSheetUrl } from '../lib/utils.ts';
 
 const sections = [
     {
@@ -35,10 +36,7 @@ const sections = [
     },
 ];
 
-function rangeToUrl(sheetId: string, range: string) {
-    const [sheetName, a1Range] = range.split('!');
-    return `https://docs.google.com/spreadsheets/d/${sheetId}/edit#range=${encodeURIComponent(`${sheetName}!${a1Range}`)}`;
-}
+
 
 export default function Guide() {
     const { settings } = useApp();
@@ -71,7 +69,7 @@ export default function Guide() {
                                     </div>
                                 </div>
                                 <a
-                                    href={rangeToUrl(settings.sheetId, section.sheetRange)}
+                                    href={buildSheetUrl(settings.sheetId, section.sheetRange, settings.journalGid, settings.configGid)}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--card-border)] px-3 py-2 text-[12px] font-bold text-[var(--muted)] transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"

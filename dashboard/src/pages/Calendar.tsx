@@ -4,7 +4,7 @@ import { ChevronLeft, ExternalLink, CalendarRange, TrendingUp, TrendingDown, Tar
 import { useApp } from '../context.tsx';
 import { Card } from '../components/ui/Card.tsx';
 import { AnalyticsService } from '../services/analyticsService.ts';
-import { cn, formatCurrency, formatPercent } from '../lib/utils.ts';
+import { cn, formatCurrency, formatPercent, buildSheetUrl, buildJournalRowUrl } from '../lib/utils.ts';
 import type { Trade } from '../types.ts';
 
 function dateKey(date: Date) {
@@ -86,8 +86,8 @@ export default function Calendar() {
   const winRateMonth = monthSummary.closedTrades ? monthSummary.winningTrades / monthSummary.closedTrades : 0;
   const activeStreak = monthItems.reduce((best, item) => (item.pnl > 0 && best >= 0 ? best + 1 : item.pnl > 0 ? 1 : 0), 0);
   const monthMomentum = monthPnl >= 0 ? 'Đang đi lên' : 'Đang hồi phục';
-  const monthSheetUrl = settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#range=${encodeURIComponent('JOURNAL!A1:X2000')}` : '/settings';
-  const getTradeSheetUrl = (rowNumber: number) => (settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#range=${encodeURIComponent(`JOURNAL!A${rowNumber}:X${rowNumber}`)}` : '/settings');
+  const monthSheetUrl = buildSheetUrl(settings.sheetId, 'JOURNAL!A1:X2000', settings.journalGid, settings.configGid);
+  const getTradeSheetUrl = (rowNumber: number) => buildJournalRowUrl(settings.sheetId, rowNumber, settings.journalGid);
 
   const moveMonth = (offset: number) => {
     setViewDate((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));

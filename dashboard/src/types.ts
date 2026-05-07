@@ -1,4 +1,4 @@
-﻿export type TradeStatus = 'Thắng' | 'Thua' | 'Hòa' | 'Đang mở';
+export type TradeStatus = 'Thắng' | 'Thua' | 'Hòa' | 'Đang mở';
 export type AssetType = 'Cổ phiếu' | 'Phái sinh';
 export type PositionType = 'LONG' | 'SHORT';
 export type ThemeMode = 'light' | 'dark' | 'system';
@@ -78,4 +78,8 @@ export interface DashboardSettings {
   auth: AuthSettings;
   appName?: string;
   risk: RiskSettings;
+  /** Google Sheets tab gid for JOURNAL (default: 913303097) */
+  journalGid?: string;
+  /** Google Sheets tab gid for CONFIG (default: 0) */
+  configGid?: string;
 }

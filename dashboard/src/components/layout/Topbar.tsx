@@ -1,7 +1,7 @@
 import { Download, ExternalLink, Menu, RefreshCw, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useApp } from '../../context.tsx';
-import { cn, formatCurrency } from '../../lib/utils.ts';
+import { cn, formatCurrency, buildSheetUrl } from '../../lib/utils.ts';
 
 const BREADCRUMBS: Record<string, string> = {
   '/overview': 'Tổng quan',
@@ -27,7 +27,7 @@ export default function Topbar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isMo
   const location = useLocation();
   const { stats, trades, refreshData, isLoading, settings, authState, logout } = useApp();
   const sheetRange = SHEET_SHORTCUTS[location.pathname] || 'JOURNAL!A1:X2000';
-  const sheetUrl = settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#range=${encodeURIComponent(sheetRange)}` : '/settings';
+  const sheetUrl = buildSheetUrl(settings.sheetId, sheetRange, settings.journalGid, settings.configGid);
 
   const exportCsv = () => {
     const header = ['Trạng thái', 'Tài khoản', 'Tài sản', 'Mã', 'Vị thế', 'Ngày mở', 'Giờ mở', 'Ngày đóng', 'Giờ đóng', 'Khối lượng', 'Giá vào', 'Giá đóng', 'Lãi/Lỗ ròng', 'Chiến lược', 'Tâm lý', 'Nhóm ngành'];

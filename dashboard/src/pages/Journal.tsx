@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Activity, ExternalLink, Search, Target, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card, KpiCard } from '../components/ui/Card.tsx';
-import { cn, formatCurrency, formatPercent } from '../lib/utils.ts';
+import { cn, formatCurrency, formatPercent, buildJournalRowUrl } from '../lib/utils.ts';
 import { STATUS_CONFIG } from '../constants.ts';
 import { AnalyticsService } from '../services/analyticsService.ts';
 
@@ -38,7 +38,7 @@ export default function Journal() {
   const filteredTrades = useMemo(() => filteredAsc.slice().reverse(), [filteredAsc]);
   const summary = useMemo(() => AnalyticsService.summarizeTrades(filteredAsc), [filteredAsc]);
   const topSymbol = useMemo(() => AnalyticsService.groupPnL(filteredAsc, (trade) => trade.symbol)[0], [filteredAsc]);
-  const getSheetRowUrl = (rowNumber: number) => `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#range=${encodeURIComponent(`JOURNAL!A${rowNumber}:X${rowNumber}`)}`;
+  const getSheetRowUrl = (rowNumber: number) => buildJournalRowUrl(settings.sheetId, rowNumber, settings.journalGid);
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-5">
