@@ -1,12 +1,13 @@
 """Generate comprehensive sample data"""
 import os, sys, random, datetime
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -108,9 +109,9 @@ def generate_sample_data():
     m_o_data = [r[12:15] for r in rows]
     v_data = [[r[21]] for r in rows]
     
-    ws_nk.update(f'B2:K{len(rows)+1}', b_k_data, value_input_option='USER_ENTERED')
-    ws_nk.update(f'M2:O{len(rows)+1}', m_o_data, value_input_option='USER_ENTERED')
-    ws_nk.update(f'V2:V{len(rows)+1}', v_data, value_input_option='USER_ENTERED')
+    ws_nk.update(values=b_k_data, range_name=f'B2:K{len(rows)+1}', value_input_option='USER_ENTERED')
+    ws_nk.update(values=m_o_data, range_name=f'M2:O{len(rows)+1}', value_input_option='USER_ENTERED')
+    ws_nk.update(values=v_data, range_name=f'V2:V{len(rows)+1}', value_input_option='USER_ENTERED')
     
     print(f"Inserted {len(rows)} sample rows.")
 

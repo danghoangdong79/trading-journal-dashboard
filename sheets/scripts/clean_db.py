@@ -1,12 +1,13 @@
 """Clean up sheet to strict database format and add sample data"""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, [
@@ -24,7 +25,7 @@ def cleanup_and_seed():
     name_map = {
         "CONFIG": "config",
         "LISTS": "lists",
-        "JOURNAL_LOG": "journal",
+        "JOURNAL": "journal",
         "SUMMARY": "summary"
     }
     for ws in sh.worksheets():
@@ -43,7 +44,7 @@ def cleanup_and_seed():
     except: pass
 
     print("3. Seeding sample data to 'journal'...")
-    ws_j = sh.worksheet("journal")
+    ws_j = sh.worksheet("JOURNAL")
     
     # We only update manual entry columns to avoid breaking ArrayFormulas
     # Cols: A-G (0-6), I-M (8-12), R-T (17-19)

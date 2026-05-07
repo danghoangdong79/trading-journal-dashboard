@@ -1,12 +1,13 @@
 """Rebuild CONFIG sheet and update JOURNAL formulas"""
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def rebuild():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -32,9 +33,9 @@ def rebuild():
         ["Phái Sinh", "Phí giao dịch / chiều", 4000, "", "Mục tiêu", "Tỷ lệ R:R tối thiểu", 2, "", "", "", ""]
     ]
 
-    ws_config.update('A1:K1', [headers], value_input_option='USER_ENTERED')
-    ws_config.update('A2:K2', [sub_headers], value_input_option='USER_ENTERED')
-    ws_config.update('A3:K7', data, value_input_option='USER_ENTERED')
+    ws_config.update(values=[headers], range_name='A1:K1', value_input_option='USER_ENTERED')
+    ws_config.update(values=[sub_headers], range_name='A2:K2', value_input_option='USER_ENTERED')
+    ws_config.update(values=data, range_name='A3:K7', value_input_option='USER_ENTERED')
 
     # Formatting headers
     reqs = []

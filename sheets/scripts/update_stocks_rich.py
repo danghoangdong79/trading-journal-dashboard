@@ -1,12 +1,13 @@
 """Update Setup with rich stock list and new columns"""
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def update_rich_stocks():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -96,13 +97,13 @@ def update_rich_stocks():
     ]
 
     # Update Headers in SETUP
-    ws_setup.update('A2:E2', [["Mã", "Tên Công Ty", "Nhóm/Ngành", "Sàn", "Bật"]], value_input_option='USER_ENTERED')
+    ws_setup.update(values=[["Mã", "Tên Công Ty", "Nhóm/Ngành", "Sàn", "Bật"]], range_name='A2:E2', value_input_option='USER_ENTERED')
     
     # Clear old stocks
     ws_setup.batch_clear(["A3:E500"])
     
     # Insert new rich stock list
-    ws_setup.update('A3:E' + str(2 + len(stocks_data)), stocks_data, value_input_option='USER_ENTERED')
+    ws_setup.update(values=stocks_data, range_name='A3:E' + str(2 + len(stocks_data)), value_input_option='USER_ENTERED')
     
     # Update Data validation (checkbox) for column E
     reqs = []

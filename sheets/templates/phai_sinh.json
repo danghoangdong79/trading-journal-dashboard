@@ -1,45 +1,205 @@
 {
-  "sheet_name": "JOURNAL_LOG",
-  "description": "Schema cho giao dịch Phái sinh VN30F",
+  "sheet_name": "JOURNAL",
+  "description": "Ocean 24-column schema matching the live Google Sheet.",
   "columns": [
-    {"col": "A", "key": "stt", "label": "STT", "type": "auto", "formula": "=ROW()-{header_row}"},
-    {"col": "B", "key": "trang_thai", "label": "Trạng Thái", "type": "enum", "options": ["✅ Win", "❌ Lose", "➖ Hòa", "⏳ Đang mở"], "input": true},
-    {"col": "C", "key": "loai_tai_san", "label": "Loại TS", "type": "enum", "options": ["Phái sinh", "Cổ phiếu"], "input": true},
-    {"col": "D", "key": "ma_gd", "label": "Mã GD", "type": "text", "input": true, "example": "VN30F2506"},
-    {"col": "E", "key": "chien_luoc", "label": "Chiến Lược", "type": "enum", "input": true},
-    {"col": "F", "key": "vi_the", "label": "Vị Thế", "type": "enum", "options": ["Long", "Short"], "input": true},
-    {"col": "G", "key": "phien", "label": "Phiên", "type": "enum", "options": ["Sáng", "Chiều", "ATO", "ATC"], "input": true},
-    {"col": "H", "key": "ngay_gio_vao", "label": "Ngày & Giờ Vào", "type": "datetime", "format": "dd/MM/yyyy HH:mm", "input": true},
-    {"col": "I", "key": "thu", "label": "Thứ", "type": "auto", "formula": "=TEXT({H},\"dddd\")"},
-    {"col": "J", "key": "ngay_gio_dong", "label": "Ngày & Giờ Đóng", "type": "datetime", "format": "dd/MM/yyyy HH:mm", "input": true},
-    {"col": "K", "key": "thoi_gian_gd", "label": "TG Giao Dịch", "type": "auto", "formula": "=IF({J}<>\"\",TEXT({J}-{H},\"[h]\"&\"h \"&\"mm\"&\"m\"),\"\")"},
-    {"col": "L", "key": "so_du", "label": "Số Dư", "type": "auto", "formula": "=IF({row}={first_data_row},CONFIG!$B$1,{prev_AD})"},
-    {"col": "M", "key": "khoi_luong", "label": "Số HĐ", "type": "number", "input": true, "example": 2},
-    {"col": "N", "key": "gia_vao", "label": "Giá Vào", "type": "number", "input": true, "example": 1285},
-    {"col": "O", "key": "cat_lo", "label": "Cắt Lỗ (SL)", "type": "number", "input": true, "example": 1275},
-    {"col": "P", "key": "sl_diem", "label": "SL (Điểm)", "type": "auto", "formula": "=IF({F}=\"Long\",{N}-{O},{O}-{N})"},
-    {"col": "Q", "key": "chot_loi", "label": "Chốt Lời (TP)", "type": "number", "input": true, "example": 1300},
-    {"col": "R", "key": "tp_diem", "label": "TP (Điểm)", "type": "auto", "formula": "=IF({F}=\"Long\",{Q}-{N},{N}-{Q})"},
-    {"col": "S", "key": "gia_dong", "label": "Giá Đóng", "type": "number", "input": true, "example": 1300},
-    {"col": "T", "key": "diem_thuc_te", "label": "Điểm Thực Tế", "type": "auto", "formula": "=IF({S}<>\"\",IF({F}=\"Long\",{S}-{N},{N}-{S}),\"\")"},
-    {"col": "U", "key": "rr_ky_vong", "label": "R:R Kỳ Vọng", "type": "auto", "formula": "=IFERROR({R}/{P},\"\")"},
-    {"col": "V", "key": "rui_ro_pct", "label": "Rủi Ro %", "type": "auto", "formula": "=IFERROR(({P}*{M}*CONFIG!$B$5)/{L},\"\")"},
-    {"col": "W", "key": "muc_tieu_lai_pct", "label": "Mục Tiêu Lãi %", "type": "auto", "formula": "=IFERROR(({R}*{M}*CONFIG!$B$5)/{L},\"\")"},
-    {"col": "X", "key": "lai_lo_gop", "label": "Lãi/Lỗ Gộp", "type": "auto", "formula": "=IF({S}<>\"\",{T}*{M}*CONFIG!$B$5,\"\")"},
-    {"col": "Y", "key": "pct_thay_doi_gop", "label": "% Thay Đổi Gộp", "type": "auto", "formula": "=IFERROR({X}/{L},\"\")"},
-    {"col": "Z", "key": "phi_gd", "label": "Phí GD", "type": "auto", "formula": "={M}*CONFIG!$B$4*2", "note": "Phí 2 chiều (vào + ra)"},
-    {"col": "AA", "key": "thue", "label": "Thuế", "type": "auto", "formula": "=0", "note": "Phái sinh không có thuế"},
-    {"col": "AB", "key": "lai_lo_rong", "label": "Lãi/Lỗ Ròng", "type": "auto", "formula": "=IF({X}<>\"\",{X}-{Z}-{AA},\"\")"},
-    {"col": "AC", "key": "lai_lo_tich_luy", "label": "L/L Tích Lũy", "type": "auto", "formula": "=IF({row}={first_data_row},{AB},IF({AB}<>\"\",{prev_AC}+{AB},\"\"))"},
-    {"col": "AD", "key": "so_du_da_dong", "label": "Số Dư Đã Đóng", "type": "auto", "formula": "=IF({AB}<>\"\",{L}+{AB},\"\")"},
-    {"col": "AE", "key": "pct_thay_doi_rong", "label": "% TĐ Ròng", "type": "auto", "formula": "=IFERROR({AB}/{L},\"\")"},
-    {"col": "AF", "key": "pct_tang_truong", "label": "% Tăng Trưởng", "type": "auto", "formula": "=IFERROR({AD}/CONFIG!$B$1-1,\"\")"},
-    {"col": "AG", "key": "tam_ly", "label": "Tâm Lý", "type": "enum", "input": true},
-    {"col": "AH", "key": "ghi_chu", "label": "Ghi Chú", "type": "text", "input": true}
+    {
+      "col": "A",
+      "key": "trang_thai",
+      "label": "Tr\u1ea1ng Th\u00e1i",
+      "type": "auto",
+      "formula": "={\"Tr\u1ea1ng Th\u00e1i\"; ARRAYFORMULA(IF(D2:D=\"\", \"\", IF(O2:O=\"\", \"\u0110ang m\u1edf\", IF(U2:U>0, \"Th\u1eafng\", IF(U2:U<0, \"Thua\", \"H\u00f2a\")))))}"
+    },
+    {
+      "col": "B",
+      "key": "tai_khoan",
+      "label": "T\u00e0i Kho\u1ea3n",
+      "type": "enum",
+      "source": "FORMULAS!$I$2:$I",
+      "input": true
+    },
+    {
+      "col": "C",
+      "key": "tai_san",
+      "label": "T\u00e0i S\u1ea3n",
+      "type": "enum",
+      "options": [
+        "C\u1ed5 phi\u1ebfu",
+        "Ph\u00e1i sinh"
+      ],
+      "input": true
+    },
+    {
+      "col": "D",
+      "key": "ma_gd",
+      "label": "M\u00e3 GD",
+      "type": "enum",
+      "source": "FORMULAS!M:ZZ theo tung dong",
+      "input": true
+    },
+    {
+      "col": "E",
+      "key": "vi_the",
+      "label": "V\u1ecb Th\u1ebf",
+      "type": "enum",
+      "options": [
+        "LONG",
+        "SHORT"
+      ],
+      "input": true
+    },
+    {
+      "col": "F",
+      "key": "loai_lenh",
+      "label": "Lo\u1ea1i L\u1ec7nh",
+      "type": "enum",
+      "source": "FORMULAS!$E$2:$E",
+      "input": true
+    },
+    {
+      "col": "G",
+      "key": "chien_luoc",
+      "label": "Chi\u1ebfn L\u01b0\u1ee3c",
+      "type": "enum",
+      "source": "FORMULAS!$C$2:$C",
+      "input": true
+    },
+    {
+      "col": "H",
+      "key": "ngay_mo",
+      "label": "Ng\u00e0y M\u1edf",
+      "type": "date",
+      "format": "dd/MM/yyyy",
+      "input": true
+    },
+    {
+      "col": "I",
+      "key": "gio_mo",
+      "label": "Gi\u1edd M\u1edf",
+      "type": "time",
+      "format": "HH:mm:ss",
+      "input": true
+    },
+    {
+      "col": "J",
+      "key": "ngay_dong",
+      "label": "Ng\u00e0y \u0110\u00f3ng",
+      "type": "date",
+      "format": "dd/MM/yyyy",
+      "input": true
+    },
+    {
+      "col": "K",
+      "key": "gio_dong",
+      "label": "Gi\u1edd \u0110\u00f3ng",
+      "type": "time",
+      "format": "HH:mm:ss",
+      "input": true
+    },
+    {
+      "col": "L",
+      "key": "so_ngay",
+      "label": "S\u1ed1 Ng\u00e0y",
+      "type": "auto",
+      "formula": "={\"S\u1ed1 Ng\u00e0y\"; ARRAYFORMULA(IF(D2:D=\"\", \"\", IF(J2:J=\"\", \"\", J2:J - H2:H)))}"
+    },
+    {
+      "col": "M",
+      "key": "khoi_luong",
+      "label": "Kh\u1ed1i L\u01b0\u1ee3ng",
+      "type": "number",
+      "input": true
+    },
+    {
+      "col": "N",
+      "key": "gia_vao",
+      "label": "Gi\u00e1 V\u00e0o",
+      "type": "number",
+      "input": true
+    },
+    {
+      "col": "O",
+      "key": "gia_dong",
+      "label": "Gi\u00e1 \u0110\u00f3ng",
+      "type": "number",
+      "input": true
+    },
+    {
+      "col": "P",
+      "key": "cat_lo",
+      "label": "C\u1eaft L\u1ed7 (SL)",
+      "type": "number",
+      "input": true
+    },
+    {
+      "col": "Q",
+      "key": "chot_loi",
+      "label": "Ch\u1ed1t L\u1eddi (TP)",
+      "type": "number",
+      "input": true
+    },
+    {
+      "col": "R",
+      "key": "bien_do",
+      "label": "Bi\u00ean \u0110\u1ed9",
+      "type": "auto",
+      "formula": "={\"Bi\u00ean \u0110\u1ed9\"; ARRAYFORMULA(IF(D2:D=\"\", \"\", IF(O2:O=\"\", \"\", IF(REGEXMATCH(UPPER(E2:E), \"MUA|LONG\"), O2:O-N2:N, N2:N-O2:O))))}"
+    },
+    {
+      "col": "S",
+      "key": "lai_lo_gop",
+      "label": "L\u00e3i/L\u1ed7 G\u1ed9p",
+      "type": "auto",
+      "formula": "={\"L\u00e3i/L\u1ed7 G\u1ed9p\"; ARRAYFORMULA(IF(D2:D=\"\", \"\", IF(O2:O=\"\", \"\", R2:R * M2:M * IF(C2:C=\"Ph\u00e1i sinh\", CONFIG!$C$6, CONFIG!$C$3))))}"
+    },
+    {
+      "col": "T",
+      "key": "phi_thue",
+      "label": "Ph\u00ed & Thu\u1ebf",
+      "type": "auto",
+      "formula": "={\"Ph\u00ed & Thu\u1ebf\"; ARRAYFORMULA(IF(D2:D=\"\", \"\", IF(O2:O=\"\", \"\", IF(C2:C=\"Ph\u00e1i sinh\", M2:M * (CONFIG!$C$7 + CONFIG!$C$8) * 2, (N2:N * M2:M * CONFIG!$C$3 * CONFIG!$C$4) + (O2:O * M2:M * CONFIG!$C$3 * (CONFIG!$C$4 + CONFIG!$C$5))))))}"
+    },
+    {
+      "col": "U",
+      "key": "lai_lo_rong",
+      "label": "L\u00e3i/L\u1ed7 R\u00f2ng",
+      "type": "auto",
+      "formula": "={\"L\u00e3i/L\u1ed7 R\u00f2ng\"; ARRAYFORMULA(IF(D2:D=\"\", \"\", IF(O2:O=\"\", \"\", S2:S - T2:T)))}"
+    },
+    {
+      "col": "V",
+      "key": "tam_ly",
+      "label": "T\u00e2m L\u00fd",
+      "type": "enum",
+      "source": "FORMULAS!$D$2:$D",
+      "input": true
+    },
+    {
+      "col": "W",
+      "key": "ghi_chu_review",
+      "label": "Ghi Ch\u00fa Review",
+      "type": "text",
+      "input": true
+    },
+    {
+      "col": "X",
+      "key": "nhom_nganh",
+      "label": "Nh\u00f3m Ng\u00e0nh",
+      "type": "auto",
+      "formula": "=ARRAYFORMULA(IF(D2:D=\"\", \"\", IFERROR(VLOOKUP(D2:D, SETUP!E:G, 3, 0), IFERROR(VLOOKUP(D2:D, SETUP!O:Q, 3, 0), \"Kh\u00e1c\"))))"
+    }
+  ],
+  "status_options": [
+    "Th\u1eafng",
+    "Thua",
+    "H\u00f2a",
+    "\u0110ang m\u1edf"
   ],
   "formulas_reference": {
-    "CONFIG!$B$1": "Vốn ban đầu",
-    "CONFIG!$B$4": "Phí phái sinh / HĐ / chiều",
-    "CONFIG!$B$5": "Giá trị 1 điểm (100.000 VNĐ)"
+    "CONFIG!$C$3": "He so gia co phieu",
+    "CONFIG!$C$4": "Phi giao dich co phieu",
+    "CONFIG!$C$5": "Thue TNCN co phieu",
+    "CONFIG!$C$6": "He so diem phai sinh",
+    "CONFIG!$C$7": "Phi giao dich phai sinh",
+    "CONFIG!$C$8": "Thue phai sinh uoc tinh"
   }
 }

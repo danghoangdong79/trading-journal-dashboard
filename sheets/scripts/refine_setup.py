@@ -1,12 +1,13 @@
 """Làm phong phú data SETUP và đổi LISTS thành FORMULAS"""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -104,7 +105,7 @@ def refine_setup():
         
         setup_data.append(row)
         
-    ws_setup.update('A3', setup_data, value_input_option='USER_ENTERED')
+    ws_setup.update(values=setup_data, range_name='A3', value_input_option='USER_ENTERED')
     
     # Checkboxes for rows 3:max_len+3
     check_reqs = []
@@ -128,7 +129,7 @@ def refine_setup():
             '=IFERROR(FILTER(SETUP!P3:P, SETUP!S3:S=TRUE), "")'
         ]
     ]
-    ws_form.update('A1', form_data, value_input_option='USER_ENTERED')
+    ws_form.update(values=form_data, range_name='A1', value_input_option='USER_ENTERED')
     ws_form.format('A1:D1', {"backgroundColor": {"red": 0.3, "green": 0.4, "blue": 0.5}, "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}})
 
     print("5. Link JOURNAL dropdowns to FORMULAS...")

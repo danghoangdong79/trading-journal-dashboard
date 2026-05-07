@@ -1,82 +1,54 @@
-# 📊 KhangHang1 — Hệ Thống Nhật Ký Giao Dịch VN
+# KhangHang1 - Trading Journal VN
 
-> Nhật ký giao dịch thông minh cho **Phái sinh (VN30F)** và **Cổ phiếu Việt Nam**, tích hợp tự động hóa nhập liệu qua n8n.
+Trading journal cho phai sinh VN30F va co phieu Viet Nam. Google Sheets la data engine, dashboard web tinh dung de phan tich KPI/PnL.
 
-## Tổng quan hệ thống
+## Chuan du lieu hien tai
 
-```
-Khách hàng → [Telegram Bot / Email] → n8n Automation → Google Sheets → Dashboard
-```
+- Tab du lieu chinh: `JOURNAL`.
+- Layout chuan: Ocean 24 cot, khop voi Google Sheet that.
+- Dashboard doc truc tiep `JOURNAL!A1:X2000` qua Google Sheets API key va fallback ve demo neu chua cau hinh.
+- Tabs chinh tren sheet that: `CONFIG`, `SETUP`, `FORMULAS`, `JOURNAL`, `SUMMARY`.
 
-## Cấu trúc thư mục
+## Cau truc repo
 
-```
+```text
 khanghang1/
-├── credentials/                    # 🔐 Service Account keys (KHÔNG COMMIT)
-│   └── gen-lang-client-*.json
-│
-├── docs/                           # 📖 Tài liệu dự án
-│   └── implementation_plan.md      #    Kế hoạch triển khai chi tiết
-│
-├── sheets/                         # 📋 Google Sheets Engine
-│   ├── templates/                  #    Cấu trúc sheet mẫu (JSON schema)
-│   │   ├── phai_sinh.json          #    Schema cho Phái sinh VN30F
-│   │   ├── co_phieu.json           #    Schema cho Cổ phiếu VN
-│   │   └── config.json             #    Cấu hình phí, thuế, tham số thị trường
-│   └── scripts/                    #    Python scripts thao tác Google Sheets
-│       ├── setup_sheet.py          #    Tạo/khởi tạo sheet cho khách mới
-│       ├── sync_data.py            #    Đồng bộ dữ liệu Sheet ↔ Dashboard
-│       └── utils.py                #    Hàm tiện ích (auth, format, validate)
-│
-├── n8n/                            # ⚙️ Tự động hóa n8n
-│   ├── workflows/                  #    File JSON workflow n8n (import trực tiếp)
-│   │   ├── telegram_entry.json     #    Workflow: Telegram Bot → Sheet
-│   │   ├── email_parser.json       #    Workflow: Email CTCK → Sheet
-│   │   └── daily_report.json       #    Workflow: Báo cáo ngày tự động
-│   └── parsers/                    #    Logic parse lệnh (dùng trong n8n Code node)
-│       ├── parse_derivative.js     #    Parse lệnh Phái sinh từ text
-│       ├── parse_stock.js          #    Parse lệnh Cổ phiếu từ text
-│       └── parse_broker_email.js   #    Parse email báo khớp từ CTCK
-│
-├── dashboard/                      # 🖥️ Web Dashboard (Premium UI)
-│   ├── index.html                  #    Trang chính — Dashboard tổng quan
-│   ├── assets/
-│   │   ├── css/
-│   │   │   └── style.css           #    Design system (Dark mode, Glassmorphism)
-│   │   ├── js/
-│   │   │   ├── app.js              #    Logic chính, routing, state
-│   │   │   ├── charts.js           #    Biểu đồ (Equity curve, Win rate, PnL)
-│   │   │   └── gsheet-api.js       #    Fetch data từ Google Sheets API
-│   │   └── img/                    #    Logo, icons, assets
-│   └── components/                 #    HTML components (modular)
-│       ├── sidebar.html            #    Sidebar navigation
-│       ├── kpi-cards.html          #    KPI metrics cards
-│       └── trade-table.html        #    Bảng lịch sử giao dịch
-│
-└── README.md                       # 📝 File này
+??? credentials/              # Token/key local, khong commit
+??? dashboard/                # Dashboard HTML/CSS/JS tinh
+??? docs/                     # Prompt va tai lieu bo sung
+??? schema/                   # Tai lieu schema Google Sheets
+??? sheets/
+?   ??? scripts/              # Script setup/rebuild/audit Google Sheets
+?   ??? templates/            # JSON schema/template
+??? .env.example
+??? requirements.txt
 ```
 
-## Tech Stack
+## Cai dat Python
 
-| Layer | Công nghệ | Mô tả |
-|-------|-----------|-------|
-| **Data** | Google Sheets API | Lưu trữ, tính toán công thức |
-| **Auth** | Service Account | `qhp-bot@...iam.gserviceaccount.com` |
-| **Automation** | n8n | Webhook, Telegram Bot, Email parsing |
-| **Frontend** | HTML/CSS/JS | Dashboard Premium (Dark mode) |
-| **Charts** | Chart.js / ApexCharts | Biểu đồ tương tác |
-| **AI Parse** | Gemini / OpenAI (via n8n) | Trích xuất lệnh từ text tự nhiên |
+```bash
+python -m pip install -r requirements.txt
+```
 
-## Thị trường hỗ trợ
+Copy `.env.example` thanh `.env` hoac set bien moi truong:
 
-### 🔴 Phái sinh (VN30F)
-- Vị thế: Long / Short
-- Đơn vị tính: Điểm (1 điểm = 100.000 VNĐ)
-- Phí: ~7.700 VNĐ/HĐ/chiều (tùy CTCK)
-- Giao dịch T+0
+```bash
+KHANGHANG_SHEET_ID=your_google_sheet_id
+KHANGHANG_TOKEN_PATH=credentials/token.json
+KHANGHANG_SERVICE_ACCOUNT_EMAIL=service-account@example.iam.gserviceaccount.com
+```
 
-### 🟢 Cổ phiếu Việt Nam
-- Vị thế: Mua / Bán
-- Đơn vị tính: VNĐ
-- Phí: ~0.15% giá trị GD + Thuế bán 0.1%
-- Thanh toán T+2
+## Lenh quan trong
+
+- Tao sheet moi qua OAuth: `python sheets/scripts/setup_sheet.py --name "Ten KH" --capital 200000000`
+- Rebuild sheet hien co: `python sheets/scripts/rebuild_sheet.py --sheet-id <ID> --confirm`
+- Dry-run rebuild an toan: `python sheets/scripts/rebuild_sheet.py --sheet-id <ID> --dry-run`
+
+## Dashboard
+
+Mo `dashboard/index.html`, vao **Cai Dat**, nhap:
+
+- `Sheet ID`: ID Google Sheet co tab `JOURNAL`.
+- `API Key`: Google API key co quyen doc Sheets API.
+
+Neu thieu hoac loi API, dashboard tu tai du lieu demo de khong trang man hinh.

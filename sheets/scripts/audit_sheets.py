@@ -1,12 +1,13 @@
 """Audit and perfect data validation for all sheets"""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, [
@@ -39,11 +40,11 @@ def audit():
     for i in range(max_len):
         data.append([t_col[i], s_col[i], p_col[i]])
         
-    ws_lists.update('A1', data)
+    ws_lists.update(values=data, range_name='A1')
     ws_lists.format('A1:C1', {"backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.3}, "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}})
 
     print("2. Clearing old data validations in 'journal'...")
-    journal_sid = sh.worksheet("journal").id
+    journal_sid = sh.worksheet("JOURNAL").id
     
     # Clear ALL data validations first
     clear_req = {

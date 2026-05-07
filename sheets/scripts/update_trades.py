@@ -1,12 +1,13 @@
 """Delete SUMMARY and populate sample trades"""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -50,7 +51,7 @@ def update_db():
     for r in rows:
         ah_k_updates.append(r)
     
-    ws_jl.update('A2', ah_k_updates, value_input_option='USER_ENTERED')
+    ws_jl.update(values=ah_k_updates, range_name='A2', value_input_option='USER_ENTERED')
     
     # Volumes and Prices (M, N, O)
     mq_updates = [
@@ -59,7 +60,7 @@ def update_db():
         [7, 2014.7, 2013.4],
         [19, 2010.0, ""], # Fake price for MOK, open trade
     ]
-    ws_jl.update('M2', mq_updates, value_input_option='USER_ENTERED')
+    ws_jl.update(values=mq_updates, range_name='M2', value_input_option='USER_ENTERED')
     
     # Psychology (V)
     v_updates = [
@@ -68,7 +69,7 @@ def update_db():
         ["Bình tĩnh"],
         ["FOMO"]
     ]
-    ws_jl.update('V2', v_updates, value_input_option='USER_ENTERED')
+    ws_jl.update(values=v_updates, range_name='V2', value_input_option='USER_ENTERED')
     
     print("Populated real VPS trades.")
 

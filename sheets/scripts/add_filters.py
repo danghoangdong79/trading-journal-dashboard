@@ -1,11 +1,12 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def add_filters():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -15,8 +16,8 @@ def add_filters():
 
     # 1. ADD HELPER COLUMN TO JOURNAL
     ws_journal = sh.worksheet("JOURNAL")
-    ws_journal.update('X1', [["Nhóm Ngành"]], value_input_option='USER_ENTERED')
-    ws_journal.update('X2', [['=ARRAYFORMULA(IF(D2:D="", "", IFERROR(VLOOKUP(D2:D, SETUP!E:G, 3, 0), IFERROR(VLOOKUP(D2:D, SETUP!O:Q, 3, 0), "Khác"))))']], value_input_option='USER_ENTERED')
+    ws_journal.update(values=[["Nhóm Ngành"]], range_name='X1', value_input_option='USER_ENTERED')
+    ws_journal.update(values=[['=ARRAYFORMULA(IF(D2:D="", "", IFERROR(VLOOKUP(D2:D, SETUP!E:G, 3, 0), IFERROR(VLOOKUP(D2:D, SETUP!O:Q, 3, 0), "Khác"))))']], range_name='X2', value_input_option='USER_ENTERED')
     
     # 2. UPDATE SUMMARY LAYOUT
     ws = sh.worksheet("SUMMARY")
@@ -30,7 +31,7 @@ def add_filters():
         ["Lọc Nhóm ngành", "Tất cả", "Từ ngày", ""],
         ["", "", "Đến ngày", ""]
     ]
-    ws.update('B4:E8', filters, value_input_option='USER_ENTERED')
+    ws.update(values=filters, range_name='B4:E8', value_input_option='USER_ENTERED')
     
     # Get values for Nhóm ngành dropdown from SETUP
     ws_setup = sh.worksheet("SETUP")
@@ -42,10 +43,10 @@ def add_filters():
     # C4: Tài sản, C5: Vị thế, C6: Chiến lược, C7: Nhóm ngành
     # JOURNAL!X is Nhóm Ngành
     query_str = '="SELECT A, C, D, E, G, H, J, L, M, N, O, R, S, T, U, V, W WHERE D IS NOT NULL " & IF(C4="Tất cả", "", " AND C = \'" & C4 & "\' ") & IF(C6="Tất cả", "", " AND G = \'" & C6 & "\' ") & IF(C5="Tất cả", "", " AND E = \'" & C5 & "\' ") & IF(C7="Tất cả", "", " AND X = \'" & C7 & "\' ") & IF(E4="Theo tháng", IF(E5="Tất cả", "", " AND YEAR(H) = " & E5 & " ") & IF(E6="Tất cả", "", " AND month(H) = " & IFERROR(E6-1, 0) & " "), IF(ISBLANK(E7), "", " AND H >= date \'" & TEXT(E7, "yyyy-mm-dd") & "\' ") & IF(ISBLANK(E8), "", " AND H <= date \'" & TEXT(E8, "yyyy-mm-dd") & "\' "))'
-    ws.update('Z1', [[query_str]], value_input_option='USER_ENTERED')
+    ws.update(values=[[query_str]], range_name='Z1', value_input_option='USER_ENTERED')
     
     # Update Query Formula reference
-    ws.update('B10', [['=IFERROR(QUERY(JOURNAL!A2:X, Z1, 0), {"Không có dữ liệu phù hợp", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})']], value_input_option='USER_ENTERED')
+    ws.update(values=[['=IFERROR(QUERY(JOURNAL!A2:X, Z1, 0), {"Không có dữ liệu phù hợp", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})']], range_name='B10', value_input_option='USER_ENTERED')
     
     # Apply validations & formats
     reqs = []

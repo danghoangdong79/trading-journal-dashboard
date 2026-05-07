@@ -1,11 +1,12 @@
 import os, sys, json
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def update_all():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -63,17 +64,17 @@ def update_all():
 
     # Layout Data
     # Row 1: Title
-    ws_summary.update('A1', [["SUMMARY DASHBOARD"]], value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["SUMMARY DASHBOARD"]], range_name='A1', value_input_option='USER_ENTERED')
     
     # Row 2: Filters
-    ws_summary.update('B2', [["Từ ngày:"]], value_input_option='USER_ENTERED')
-    ws_summary.update('E2', [["Đến ngày:"]], value_input_option='USER_ENTERED')
-    ws_summary.update('H2', [["Tài sản:"]], value_input_option='USER_ENTERED')
-    ws_summary.update('I2', [["Tất cả"]], value_input_option='USER_ENTERED')
-    ws_summary.update('K2', [["Chiến lược:"]], value_input_option='USER_ENTERED')
-    ws_summary.update('L2', [["Tất cả"]], value_input_option='USER_ENTERED')
-    ws_summary.update('N2', [["Vị thế:"]], value_input_option='USER_ENTERED')
-    ws_summary.update('O2', [["Tất cả"]], value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Từ ngày:"]], range_name='B2', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Đến ngày:"]], range_name='E2', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Tài sản:"]], range_name='H2', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Tất cả"]], range_name='I2', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Chiến lược:"]], range_name='K2', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Tất cả"]], range_name='L2', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Vị thế:"]], range_name='N2', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Tất cả"]], range_name='O2', value_input_option='USER_ENTERED')
 
     # Row 4-8: KPIs
     kpis = [
@@ -83,16 +84,16 @@ def update_all():
         ["GD Hòa", '=COUNTIF(A15:A, "Hòa")', "", "", "", "", "", "", "", "", ""],
         ["Đang mở", '=COUNTIF(A15:A, "Đang mở")', "", "", "", "", "", "", "", "", ""]
     ]
-    ws_summary.update('B4:L8', kpis, value_input_option='USER_ENTERED')
+    ws_summary.update(values=kpis, range_name='B4:L8', value_input_option='USER_ENTERED')
 
     # Row 13: Table Headers
     headers = ["Trạng Thái", "Tài Sản", "Mã GD", "Vị Thế", "Chiến Lược", "Ngày Mở", "Ngày Đóng", "Số Ngày", "Khối Lượng", "Giá Vào", "Giá Đóng", "Biên Độ", "Lãi/Lỗ Gộp", "Phí & Thuế", "Lãi/Lỗ Ròng", "Tâm Lý", "Ghi Chú"]
-    ws_summary.update('A13:Q13', [headers], value_input_option='USER_ENTERED')
+    ws_summary.update(values=[headers], range_name='A13:Q13', value_input_option='USER_ENTERED')
 
     # Row 14: Hidden Query String & Data Formula
     query_str = '="SELECT A, C, D, E, G, H, J, L, M, N, O, R, S, T, U, V, W WHERE D IS NOT NULL " & IF(I2="Tất cả", "", " AND C = \'" & I2 & "\' ") & IF(L2="Tất cả", "", " AND G = \'" & L2 & "\' ") & IF(O2="Tất cả", "", " AND E = \'" & O2 & "\' ") & IF(ISBLANK(C2), "", " AND H >= date \'" & TEXT(C2, "yyyy-mm-dd") & "\' ") & IF(ISBLANK(F2), "", " AND H <= date \'" & TEXT(F2, "yyyy-mm-dd") & "\' ")'
-    ws_summary.update('Z1', [[query_str]], value_input_option='USER_ENTERED')
-    ws_summary.update('A15', [['=IFERROR(QUERY(JOURNAL!A2:W, Z1, 0), {"Không có dữ liệu phù hợp", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})']], value_input_option='USER_ENTERED')
+    ws_summary.update(values=[[query_str]], range_name='Z1', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[['=IFERROR(QUERY(JOURNAL!A2:W, Z1, 0), {"Không có dữ liệu phù hợp", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})']], range_name='A15', value_input_option='USER_ENTERED')
 
     # Data Validation for Filters
     filter_vals = []

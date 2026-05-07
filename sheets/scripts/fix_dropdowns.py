@@ -1,12 +1,13 @@
 """Fix dropdowns using Sheets API directly"""
 import json, os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, [
     'https://www.googleapis.com/auth/spreadsheets',
@@ -14,11 +15,11 @@ creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, [
 ])
 service = build('sheets', 'v4', credentials=creds)
 
-# Get JOURNAL_LOG sheet ID
+# Get JOURNAL sheet ID
 meta = service.spreadsheets().get(spreadsheetId=SHEET_ID).execute()
 journal_sheet_id = None
 for s in meta['sheets']:
-    if s['properties']['title'] == 'JOURNAL_LOG':
+    if s['properties']['title'] == 'JOURNAL':
         journal_sheet_id = s['properties']['sheetId']
         break
 

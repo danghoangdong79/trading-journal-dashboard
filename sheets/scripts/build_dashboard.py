@@ -1,12 +1,13 @@
 """Build DASHBOARD sheet with KPI counters + filtered data table"""
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def build_dashboard():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -28,17 +29,17 @@ def build_dashboard():
     # =============================================
     
     # Row 1: Title + Filter controls
-    ws.update('A1', [["TỔNG HỢP GIAO DỊCH"]], value_input_option='USER_ENTERED')
-    ws.update('F1', [["Lọc Tài sản:"]], value_input_option='USER_ENTERED')
-    ws.update('G1', [["Tất cả"]], value_input_option='USER_ENTERED')
-    ws.update('I1', [["Lọc Tháng:"]], value_input_option='USER_ENTERED')
-    ws.update('J1', [["Tất cả"]], value_input_option='USER_ENTERED')
+    ws.update(values=[["TỔNG HỢP GIAO DỊCH"]], range_name='A1', value_input_option='USER_ENTERED')
+    ws.update(values=[["Lọc Tài sản:"]], range_name='F1', value_input_option='USER_ENTERED')
+    ws.update(values=[["Tất cả"]], range_name='G1', value_input_option='USER_ENTERED')
+    ws.update(values=[["Lọc Tháng:"]], range_name='I1', value_input_option='USER_ENTERED')
+    ws.update(values=[["Tất cả"]], range_name='J1', value_input_option='USER_ENTERED')
     
     # Row 3-4: KPI Box 1 - Tổng quan GD
     kpi_labels_1 = [
         ["TỔNG QUAN GIAO DỊCH", "", "", "", "", "", "HIỆU SUẤT", "", "", "", "", "", "RỦI RO & CHI PHÍ"],
     ]
-    ws.update('A3:M3', kpi_labels_1, value_input_option='USER_ENTERED')
+    ws.update(values=kpi_labels_1, range_name='A3:M3', value_input_option='USER_ENTERED')
     
     # Row 4-8: KPI Values
     # Layout: [Label, Value, spacer] x 4 groups + [Label] = 13 cols (A:M)
@@ -64,12 +65,12 @@ def build_dashboard():
          "TG GD TB", '=IFERROR(AVERAGE(JOURNAL!L2:L), 0)', "",
          '=COUNTIF(JOURNAL!A2:A, "Đang mở")'],
     ]
-    ws.update('A4:M6', kpi_data, value_input_option='USER_ENTERED')
+    ws.update(values=kpi_data, range_name='A4:M6', value_input_option='USER_ENTERED')
     
     # Row 7: Labels for the standalone values in col M
-    ws.update('L4', [["Hệ số LN"]], value_input_option='USER_ENTERED')
-    ws.update('L5', [["Phí & Thuế"]], value_input_option='USER_ENTERED')
-    ws.update('L6', [["Đang mở"]], value_input_option='USER_ENTERED')
+    ws.update(values=[["Hệ số LN"]], range_name='L4', value_input_option='USER_ENTERED')
+    ws.update(values=[["Phí & Thuế"]], range_name='L5', value_input_option='USER_ENTERED')
+    ws.update(values=[["Đang mở"]], range_name='L6', value_input_option='USER_ENTERED')
     
     # Row 8: Config references  
     extra_kpis = [
@@ -79,8 +80,8 @@ def build_dashboard():
          "R:R min", '=CONFIG!$G$7', "",
          '=CONFIG!$G$5'],
     ]
-    ws.update('A8:M8', extra_kpis, value_input_option='USER_ENTERED')
-    ws.update('L8', [["Rủi ro/Lệnh"]], value_input_option='USER_ENTERED')
+    ws.update(values=extra_kpis, range_name='A8:M8', value_input_option='USER_ENTERED')
+    ws.update(values=[["Rủi ro/Lệnh"]], range_name='L8', value_input_option='USER_ENTERED')
 
     # =============================================
     # SECTION 2: DATA TABLE (Row 12+)
@@ -90,7 +91,7 @@ def build_dashboard():
         "Ngày Mở", "Ngày Đóng", "Số Ngày", "KL", "Giá Vào", "Giá Đóng",
         "Biên Độ", "Lãi/Lỗ Gộp", "Phí & Thuế", "Lãi/Lỗ Ròng", "Tâm Lý", "Ghi Chú"
     ]
-    ws.update('A12:R12', [table_headers], value_input_option='USER_ENTERED')
+    ws.update(values=[table_headers], range_name='A12:R12', value_input_option='USER_ENTERED')
     
     # Data rows: Direct reference to JOURNAL
     data_formulas = []
@@ -117,7 +118,7 @@ def build_dashboard():
         ]
         data_formulas.append(row)
     
-    ws.update('A13:R210', data_formulas, value_input_option='USER_ENTERED')
+    ws.update(values=data_formulas, range_name='A13:R210', value_input_option='USER_ENTERED')
 
     # =============================================
     # SECTION 3: FORMATTING

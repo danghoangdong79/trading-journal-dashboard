@@ -1,11 +1,12 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def add_account_filter():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -33,13 +34,13 @@ def add_account_filter():
     }
     
     # 2. Update SUMMARY Layout
-    ws_summary.update('B8', [["Lọc Tài khoản"]], value_input_option='USER_ENTERED')
-    ws_summary.update('C8', [["Tất cả"]], value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Lọc Tài khoản"]], range_name='B8', value_input_option='USER_ENTERED')
+    ws_summary.update(values=[["Tất cả"]], range_name='C8', value_input_option='USER_ENTERED')
     
     # 3. Update SUMMARY Query String
     # B = Tài khoản
     query_str = '="SELECT A, C, D, E, G, H, J, L, M, N, O, R, S, T, U, V, W WHERE D IS NOT NULL " & IF(C4="Tất cả", "", " AND C = \'" & C4 & "\' ") & IF(C6="Tất cả", "", " AND G = \'" & C6 & "\' ") & IF(C5="Tất cả", "", " AND E = \'" & C5 & "\' ") & IF(C7="Tất cả", "", " AND X = \'" & C7 & "\' ") & IF(C8="Tất cả", "", " AND B = \'" & C8 & "\' ") & IF(E4="Theo tháng", IF(E5="Tất cả", "", " AND YEAR(H) = " & E5 & " ") & IF(E6="Tất cả", "", " AND month(H) = " & IFERROR(E6-1, 0) & " "), IF(ISBLANK(E7), "", " AND H >= date \'" & TEXT(E7, "yyyy-mm-dd") & "\' ") & IF(ISBLANK(E8), "", " AND H <= date \'" & TEXT(E8, "yyyy-mm-dd") & "\' "))'
-    ws_summary.update('Z1', [[query_str]], value_input_option='USER_ENTERED')
+    ws_summary.update(values=[[query_str]], range_name='Z1', value_input_option='USER_ENTERED')
     
     # 4. Batch Update Data Validations
     reqs = []

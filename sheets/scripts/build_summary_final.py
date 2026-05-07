@@ -1,11 +1,12 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def build_final():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -44,11 +45,11 @@ def build_final():
     # 2. Build Layout (Shifted 1 column right)
     
     # Title Block
-    ws.update('B1', [["TỔNG HỢP GIAO DỊCH"]], value_input_option='USER_ENTERED')
+    ws.update(values=[["TỔNG HỢP GIAO DỊCH"]], range_name='B1', value_input_option='USER_ENTERED')
     
     # Headers Row 3
-    ws.update('B3', [["Bộ lọc dữ liệu"]], value_input_option='USER_ENTERED')
-    ws.update('F3', [["Thống kê nhanh"]], value_input_option='USER_ENTERED')
+    ws.update(values=[["Bộ lọc dữ liệu"]], range_name='B3', value_input_option='USER_ENTERED')
+    ws.update(values=[["Thống kê nhanh"]], range_name='F3', value_input_option='USER_ENTERED')
     
     # Filter Block (B4:E6)
     filters = [
@@ -56,7 +57,7 @@ def build_final():
         ["Lọc Vị thế", "Tất cả", "Đến ngày", ""],
         ["Lọc Chiến lược", "Tất cả", "", ""]
     ]
-    ws.update('B4:E6', filters, value_input_option='USER_ENTERED')
+    ws.update(values=filters, range_name='B4:E6', value_input_option='USER_ENTERED')
     
     # Stats Block (F4:O7)
     stats_g1 = [
@@ -65,7 +66,7 @@ def build_final():
         ["% Lãi/Lỗ", "=IFERROR(G5/G4, 0)"],
         ["Số dư h.tại", "=G4+G5"]
     ]
-    ws.update('F4:G7', stats_g1, value_input_option='USER_ENTERED')
+    ws.update(values=stats_g1, range_name='F4:G7', value_input_option='USER_ENTERED')
     
     stats_g2 = [
         ["Tổng GD", '=COUNTIF(D10:D, "<>")'],
@@ -73,7 +74,7 @@ def build_final():
         ["GD Thắng", '=COUNTIF(C10:C, "Thắng")'],
         ["GD Thua", '=COUNTIF(C10:C, "Thua")']
     ]
-    ws.update('H4:I7', stats_g2, value_input_option='USER_ENTERED')
+    ws.update(values=stats_g2, range_name='H4:I7', value_input_option='USER_ENTERED')
     
     stats_g3 = [
         ["Đang mở", '=COUNTIF(C10:C, "Đang mở")'],
@@ -81,7 +82,7 @@ def build_final():
         ["Thắng TB", '=IFERROR(AVERAGEIF(Q10:Q, ">0"), 0)'],
         ["Thua TB", '=IFERROR(AVERAGEIF(Q10:Q, "<0"), 0)']
     ]
-    ws.update('J4:K7', stats_g3, value_input_option='USER_ENTERED')
+    ws.update(values=stats_g3, range_name='J4:K7', value_input_option='USER_ENTERED')
     
     stats_g4 = [
         ["Lãi CP", '=SUMIF(D10:D, "Cổ phiếu", Q10:Q)'],
@@ -89,7 +90,7 @@ def build_final():
         ["Phí & Thuế", '=SUM(P10:P)'],
         ["Hệ số LN", '=IFERROR(SUMIF(Q10:Q, ">0") / ABS(SUMIF(Q10:Q, "<0")), 0)']
     ]
-    ws.update('L4:M7', stats_g4, value_input_option='USER_ENTERED')
+    ws.update(values=stats_g4, range_name='L4:M7', value_input_option='USER_ENTERED')
     
     stats_g5 = [
         ["Max DD", '=IFERROR(MIN(Q10:Q), 0)'],
@@ -97,22 +98,22 @@ def build_final():
         ["Mục tiêu", '=CONFIG!$G$6'],
         ["Rủi ro/lệnh", '=CONFIG!$G$5']
     ]
-    ws.update('N4:O7', stats_g5, value_input_option='USER_ENTERED')
+    ws.update(values=stats_g5, range_name='N4:O7', value_input_option='USER_ENTERED')
     
     # Hidden Query String
     query_str = '="SELECT A, C, D, E, G, H, J, L, M, N, O, R, S, T, U, V, W WHERE D IS NOT NULL " & IF(C4="Tất cả", "", " AND C = \'" & C4 & "\' ") & IF(C6="Tất cả", "", " AND G = \'" & C6 & "\' ") & IF(C5="Tất cả", "", " AND E = \'" & C5 & "\' ") & IF(ISBLANK(E4), "", " AND H >= date \'" & TEXT(E4, "yyyy-mm-dd") & "\' ") & IF(ISBLANK(E5), "", " AND H <= date \'" & TEXT(E5, "yyyy-mm-dd") & "\' ")'
-    ws.update('Z1', [[query_str]], value_input_option='USER_ENTERED')
+    ws.update(values=[[query_str]], range_name='Z1', value_input_option='USER_ENTERED')
     
     # Table Headers (Row 9)
     headers = ["#", "Trạng thái", "Tài sản", "Mã GD", "Vị thế", "Chiến lược", "Ngày Mở", "Ngày Đóng", "Số ngày", "Khối lượng", "Giá vào", "Giá đóng", "Biên độ", "Lãi/Lỗ Gộp", "Phí & Thuế", "Lãi/Lỗ Ròng", "Tâm lý", "Ghi chú"]
-    ws.update('A9:R9', [headers], value_input_option='USER_ENTERED')
+    ws.update(values=[headers], range_name='A9:R9', value_input_option='USER_ENTERED')
     
     # Table Data (Row 10+)
     # 1. ArrayFormula for Row numbers in A10
-    ws.update('A10', [['=ARRAYFORMULA(IF(C10:C="", "", ROW(C10:C)-9))']], value_input_option='USER_ENTERED')
+    ws.update(values=[['=ARRAYFORMULA(IF(C10:C="", "", ROW(C10:C)-9))']], range_name='A10', value_input_option='USER_ENTERED')
     
     # 2. Query Data formula in B10
-    ws.update('B10', [['=IFERROR(QUERY(JOURNAL!A2:W, Z1, 0), {"Không có dữ liệu phù hợp", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})']], value_input_option='USER_ENTERED')
+    ws.update(values=[['=IFERROR(QUERY(JOURNAL!A2:W, Z1, 0), {"Không có dữ liệu phù hợp", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})']], range_name='B10', value_input_option='USER_ENTERED')
     
     # Apply validations & formats
     ws_setup = sh.worksheet("SETUP")

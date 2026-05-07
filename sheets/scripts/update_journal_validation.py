@@ -1,12 +1,13 @@
 """Update JOURNAL data validation and FORMULAS matrix"""
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def fix_journal():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -23,7 +24,7 @@ def fix_journal():
     for i in range(2, 2001):
         f = f'=IFERROR(TRANSPOSE(IF(JOURNAL!$C{i}="Cổ phiếu", $A$2:$A, IF(JOURNAL!$C{i}="Phái sinh", $B$2:$B, {{""}}))), "")'
         matrix_formulas.append([f])
-    ws_formulas.update('M2:M2000', matrix_formulas, value_input_option='USER_ENTERED')
+    ws_formulas.update(values=matrix_formulas, range_name='M2:M2000', value_input_option='USER_ENTERED')
 
     # 2. Add Data Validations to JOURNAL
     v_reqs = []

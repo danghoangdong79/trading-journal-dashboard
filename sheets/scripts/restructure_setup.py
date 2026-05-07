@@ -1,12 +1,13 @@
 """Restructure SETUP with Group Tables and spacing"""
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def restructure():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -124,9 +125,9 @@ def restructure():
         
         data_rows.append(row)
 
-    ws_setup.update('A1:AH1', [headers], value_input_option='USER_ENTERED')
-    ws_setup.update('A2:AH2', [sub_headers], value_input_option='USER_ENTERED')
-    ws_setup.update('A3:AH' + str(2 + len(data_rows)), data_rows, value_input_option='USER_ENTERED')
+    ws_setup.update(values=[headers], range_name='A1:AH1', value_input_option='USER_ENTERED')
+    ws_setup.update(values=[sub_headers], range_name='A2:AH2', value_input_option='USER_ENTERED')
+    ws_setup.update(values=data_rows, range_name='A3:AH' + str(2 + len(data_rows)), value_input_option='USER_ENTERED')
 
     # Formatting headers
     reqs = []
@@ -151,7 +152,7 @@ def restructure():
     # FORMULAS update
     ws_formulas.batch_clear(["A1:H2000"])
     f_headers = ["CỔ PHIẾU", "PHÁI SINH", "CHIẾN LƯỢC", "TÂM LÝ", "LOẠI LỆNH", "", "NHÓM CP", "NHÓM PS"]
-    ws_formulas.update('A1:H1', [f_headers], value_input_option='USER_ENTERED')
+    ws_formulas.update(values=[f_headers], range_name='A1:H1', value_input_option='USER_ENTERED')
     
     # Filtering based on new columns
     ws_formulas.update_acell('A2', '=FILTER(SETUP!E3:E, SETUP!I3:I=TRUE)') # Mã CP

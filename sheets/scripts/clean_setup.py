@@ -1,12 +1,13 @@
 """Rebuild SETUP cleanly and update FORMULAS & JOURNAL validation"""
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def clean_setup():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -75,8 +76,8 @@ def clean_setup():
     ]
     sub_headers = ["Mã", "Tên", "Mô tả", "Bật", ""] * 5
     
-    ws_setup.update('A1:Y1', [headers], value_input_option='USER_ENTERED')
-    ws_setup.update('A2:Y2', [sub_headers[:-1]], value_input_option='USER_ENTERED')
+    ws_setup.update(values=[headers], range_name='A1:Y1', value_input_option='USER_ENTERED')
+    ws_setup.update(values=[sub_headers[:-1]], range_name='A2:Y2', value_input_option='USER_ENTERED')
     
     # Pad columns to construct massive array
     max_len = max(len(stocks), len(derivatives), len(strategies), len(psychology), len(order_types))
@@ -95,7 +96,7 @@ def clean_setup():
         row.extend(order_types[i] if i < len(order_types) else ["", "", "", ""])
         data_rows.append(row)
         
-    ws_setup.update('A3', data_rows, value_input_option='USER_ENTERED')
+    ws_setup.update(values=data_rows, range_name='A3', value_input_option='USER_ENTERED')
     
     # Format Headers in SETUP
     reqs = [
@@ -124,7 +125,7 @@ def clean_setup():
     # 2. Rebuild FORMULAS
     ws_formulas.batch_clear(["A1:Z2000"])
     f_headers = ["CỔ PHIẾU", "PHÁI SINH", "CHIẾN LƯỢC", "TÂM LÝ", "LOẠI LỆNH"]
-    ws_formulas.update('A1:E1', [f_headers], value_input_option='USER_ENTERED')
+    ws_formulas.update(values=[f_headers], range_name='A1:E1', value_input_option='USER_ENTERED')
     
     ws_formulas.update_acell('A2', '=FILTER(SETUP!A3:A, SETUP!D3:D=TRUE)')
     ws_formulas.update_acell('B2', '=FILTER(SETUP!F3:F, SETUP!I3:I=TRUE)')
@@ -137,7 +138,7 @@ def clean_setup():
     for i in range(2, 2001):
         f = f'=IFERROR(TRANSPOSE(IF(JOURNAL!$C{i}="Cổ phiếu", $A$2:$A, IF(JOURNAL!$C{i}="Phái sinh", $B$2:$B, {{""}}))), "")'
         matrix_formulas.append([f])
-    ws_formulas.update('M2:M2000', matrix_formulas, value_input_option='USER_ENTERED')
+    ws_formulas.update(values=matrix_formulas, range_name='M2:M2000', value_input_option='USER_ENTERED')
 
     # 3. Update JOURNAL Data Validations
     v_reqs = []

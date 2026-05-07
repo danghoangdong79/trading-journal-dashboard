@@ -1,12 +1,13 @@
 """Setup Dependent Dropdowns for Tickers"""
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def setup_dropdowns():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -35,12 +36,12 @@ def setup_dropdowns():
         new_setup.append([ma, phan_loai, ten, mo_ta, trang_thai])
     
     # Update headers
-    ws_setup.update('B2:E2', [["Phân loại", "Tên", "Mô tả", "Trạng thái"]], value_input_option='USER_ENTERED')
+    ws_setup.update(values=[["Phân loại", "Tên", "Mô tả", "Trạng thái"]], range_name='B2:E2', value_input_option='USER_ENTERED')
     
     # Update data
     ws_setup.batch_clear(["A3:E20"])
     if new_setup:
-        ws_setup.update('A3:E' + str(2 + len(new_setup)), new_setup, value_input_option='USER_ENTERED')
+        ws_setup.update(values=new_setup, range_name='A3:E' + str(2 + len(new_setup)), value_input_option='USER_ENTERED')
         
     # Validation for Phân loại in SETUP (Optional but good)
     val_pl = {'setDataValidation': {'range': {'sheetId': ws_setup.id, 'startRowIndex': 2, 'endRowIndex': 100, 'startColumnIndex': 1, 'endColumnIndex': 2}, 'rule': {'condition': {'type': 'ONE_OF_LIST', 'values': [{'userEnteredValue': 'Cổ phiếu'}, {'userEnteredValue': 'Phái sinh'}]}, 'showCustomUi': True, 'strict': True}}}
@@ -54,7 +55,7 @@ def setup_dropdowns():
         f = f'=IFERROR(TRANSPOSE(FILTER(SETUP!$A$3:$A, SETUP!$B$3:$B = JOURNAL!$C{i}, SETUP!$E$3:$E = TRUE)), "")'
         matrix_formulas.append([f])
         
-    ws_formulas.update('M2:M2000', matrix_formulas, value_input_option='USER_ENTERED')
+    ws_formulas.update(values=matrix_formulas, range_name='M2:M2000', value_input_option='USER_ENTERED')
 
     # 4. Set Data Validation in JOURNAL!D2:D2000 pointing to FORMULAS!M:Z relatively
     val_dependent = {

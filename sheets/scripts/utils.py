@@ -6,17 +6,13 @@ import gspread
 from google.oauth2.service_account import Credentials
 import os
 import json
+from settings import CREDENTIALS_DIR, SCOPES, TEMPLATES_DIR
 
 # ============================================================
 # CONSTANTS
 # ============================================================
-CREDENTIALS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials')
-TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), '..', 'templates')
-
-SCOPES = [
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive'
-]
+CREDENTIALS_DIR = str(CREDENTIALS_DIR)
+TEMPLATES_DIR = str(TEMPLATES_DIR)
 
 # ============================================================
 # AUTHENTICATION
@@ -28,9 +24,8 @@ def get_credentials_path():
     for f in files:
         if f.startswith('gen-lang-client') and f.endswith('.json'):
             return os.path.join(CREDENTIALS_DIR, f)
-    # Fallback: bất kỳ file JSON nào
     for f in files:
-        if f.endswith('.json'):
+        if f.endswith('.json') and 'service_account' in json.load(open(os.path.join(CREDENTIALS_DIR, f), encoding='utf-8')).get('type', ''):
             return os.path.join(CREDENTIALS_DIR, f)
     raise FileNotFoundError(f"Không tìm thấy file credentials trong {CREDENTIALS_DIR}")
 

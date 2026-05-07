@@ -1,0 +1,143 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Sans+Mono:wght@400;500;700&display=swap&subset=vietnamese');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Noto Sans Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-background: var(--bg-color);
+  --color-foreground: var(--fg-color);
+}
+
+/* ──────────────────────────────────────────
+   Design System · 8px Grid · Fathom Style
+   ────────────────────────────────────────── */
+
+:root {
+  --bg-color: #f8f9fb;
+  --fg-color: #1a1d23;
+  --card-bg: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.06);
+  --sidebar-bg: #ffffff;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.08);
+  --win: #059669;
+  --loss: #e11d48;
+  --section-gap: 24px;
+  --card-gap: 16px;
+  --card-pad: 20px;
+}
+
+.dark {
+  --bg-color: #0b0d10;
+  --fg-color: #e5e7eb;
+  --card-bg: #111318;
+  --card-border: rgba(255, 255, 255, 0.06);
+  --sidebar-bg: #0e1015;
+  --muted: #9ca3af;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.1);
+  --win: #10b981;
+  --loss: #f43f5e;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased transition-colors duration-200;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* ── Card System ── */
+.premium-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px -1px rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.02);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dark .premium-card {
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.4);
+}
+
+.premium-card:hover {
+  border-color: var(--card-border);
+}
+
+/* ── Typography Scale (4-tier) ── */
+.type-display {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-family: var(--font-mono);
+}
+
+.type-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.type-body {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.type-caption {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* ── Semantic Colors ── */
+.text-win { color: var(--win); }
+.text-loss { color: var(--loss); }
+.bg-win-soft { background: oklch(0.92 0.04 160); }
+.bg-loss-soft { background: oklch(0.92 0.04 12); }
+.dark .bg-win-soft { background: oklch(0.25 0.04 160); }
+.dark .bg-loss-soft { background: oklch(0.25 0.04 12); }
+
+/* ── Chart Tooltips ── */
+.recharts-tooltip-cursor {
+  fill: rgba(125, 125, 125, 0.04);
+}
+
+.recharts-default-tooltip {
+  @apply !bg-[var(--card-bg)] !border-[var(--card-border)] !rounded-xl !shadow-xl !p-3 !text-foreground !text-xs !backdrop-blur-md;
+}
+
+/* ── Range Input ── */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--card-border);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--card-bg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }

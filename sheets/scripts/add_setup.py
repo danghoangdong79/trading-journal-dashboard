@@ -1,12 +1,13 @@
 """Tạo sheet SETUP và đổi tên viết hoa"""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -56,7 +57,7 @@ def update_setup():
             row.append("") # spacer
         setup_data.append(row[:-1]) # remove last spacer
         
-    ws_setup.update('A1', setup_data, value_input_option='USER_ENTERED')
+    ws_setup.update(values=setup_data, range_name='A1', value_input_option='USER_ENTERED')
     
     # Format headers
     ws_setup.format('A1:S2', {"backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.3}, "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}})
@@ -93,7 +94,7 @@ def update_setup():
             '=IFERROR(FILTER(SETUP!P3:P, SETUP!S3:S=TRUE), "")'
         ]
     ]
-    ws_lists.update('A1', lists_formulas, value_input_option='USER_ENTERED')
+    ws_lists.update(values=lists_formulas, range_name='A1', value_input_option='USER_ENTERED')
     
     # Hide LISTS
     hide_req = {"updateSheetProperties": {"properties": {"sheetId": ws_lists.id, "hidden": True}, "fields": "hidden"}}

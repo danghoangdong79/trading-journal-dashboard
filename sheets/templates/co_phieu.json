@@ -1,66 +1,26 @@
 {
-  "sheet_name": "JOURNAL_LOG",
-  "description": "Schema bổ sung cho giao dịch Cổ phiếu VN - dùng chung bảng JOURNAL_LOG với Phái sinh",
-  "notes": "Các cột giống hệt phai_sinh.json, chỉ khác logic formula tại các cột dưới đây",
+  "sheet_name": "JOURNAL",
+  "description": "Stock schema uses the same Ocean 24-column JOURNAL layout.",
+  "notes": "Live sheet uses LONG/SHORT in Vi The for both stocks and derivatives.",
   "column_overrides": {
-    "F": {
-      "key": "vi_the",
-      "options": ["Mua", "Bán"],
-      "note": "Cổ phiếu dùng Mua/Bán thay vì Long/Short"
+    "C": {
+      "options": [
+        "C\u1ed5 phi\u1ebfu"
+      ]
     },
-    "M": {
-      "key": "khoi_luong",
-      "label": "Số CP",
-      "note": "Số lượng cổ phiếu (bội số của 100 trên HOSE)",
-      "example": 1000
-    },
-    "N": {
-      "key": "gia_vao",
-      "label": "Giá Mua/Bán",
-      "note": "Đơn vị: 1.000 VNĐ (VD: 28.5 = 28.500 VNĐ)",
-      "example": 28.5
-    },
-    "P": {
-      "key": "sl_diem",
-      "label": "SL (VNĐ)",
-      "formula": "=ABS({N}-{O})*1000",
-      "note": "Khoảng cách SL tính bằng VNĐ"
-    },
-    "R": {
-      "key": "tp_diem",
-      "label": "TP (VNĐ)",
-      "formula": "=ABS({Q}-{N})*1000",
-      "note": "Khoảng cách TP tính bằng VNĐ"
-    },
-    "T": {
-      "key": "diem_thuc_te",
-      "label": "Chênh Lệch Giá",
-      "formula": "=IF({S}<>\"\",IF({F}=\"Mua\",{S}-{N},{N}-{S}),\"\")",
-      "note": "Chênh lệch giá (đơn vị 1.000 VNĐ)"
-    },
-    "X": {
-      "key": "lai_lo_gop",
-      "label": "Lãi/Lỗ Gộp",
-      "formula": "=IF({S}<>\"\",{T}*{M}*1000,\"\")",
-      "note": "Lãi/Lỗ chưa trừ phí = chênh lệch giá × số CP × 1000"
-    },
-    "Z": {
-      "key": "phi_gd",
-      "label": "Phí GD",
-      "formula": "=({N}*{M}*1000*CONFIG!$B$2)+({S}*{M}*1000*CONFIG!$B$2)",
-      "note": "Phí = 0.15% giá trị mua + 0.15% giá trị bán"
-    },
-    "AA": {
-      "key": "thue",
-      "label": "Thuế Bán",
-      "formula": "=IF({F}=\"Bán\",{S}*{M}*1000*CONFIG!$B$3,IF({S}<>\"\",{S}*{M}*1000*CONFIG!$B$3,0))",
-      "note": "Thuế bán = 0.1% giá trị bán"
+    "E": {
+      "options": [
+        "LONG",
+        "SHORT"
+      ]
     }
   },
   "formulas_reference": {
-    "CONFIG!$B$1": "Vốn ban đầu",
-    "CONFIG!$B$2": "Phí giao dịch CP (%)",
-    "CONFIG!$B$3": "Thuế bán CP (%)",
-    "note": "Cổ phiếu dùng IF(loai_tai_san=\"Cổ phiếu\",...) trong formula chung"
+    "CONFIG!$C$3": "He so gia co phieu",
+    "CONFIG!$C$4": "Phi giao dich co phieu",
+    "CONFIG!$C$5": "Thue TNCN co phieu",
+    "CONFIG!$C$6": "He so diem phai sinh",
+    "CONFIG!$C$7": "Phi giao dich phai sinh",
+    "CONFIG!$C$8": "Thue phai sinh uoc tinh"
   }
 }

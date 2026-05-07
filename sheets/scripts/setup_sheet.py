@@ -10,14 +10,10 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
+from settings import CREDENTIALS_DIR, SCOPES, SERVICE_ACCOUNT_EMAIL, TOKEN_PATH
 
-SCOPES = [
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive'
-]
-
-CREDS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials')
-TOKEN_PATH = os.path.join(CREDS_DIR, 'token.json')
+CREDS_DIR = str(CREDENTIALS_DIR)
+TOKEN_PATH = str(TOKEN_PATH)
 
 def get_oauth_client_secret():
     for f in os.listdir(CREDS_DIR):
@@ -51,6 +47,28 @@ def load_schema():
     with open(p, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+
+def col_to_index(col):
+    result = 0
+    for char in col.upper():
+        result = result * 26 + ord(char) - ord('A') + 1
+    return result - 1
+
+
+def a1_range_to_grid_range(sheet_id, a1_range):
+    start, end = a1_range.split(':')
+    start_col = ''.join(ch for ch in start if ch.isalpha())
+    start_row = ''.join(ch for ch in start if ch.isdigit())
+    end_col = ''.join(ch for ch in end if ch.isalpha())
+    end_row = ''.join(ch for ch in end if ch.isdigit())
+    return {
+        'sheetId': sheet_id,
+        'startRowIndex': int(start_row) - 1,
+        'endRowIndex': int(end_row),
+        'startColumnIndex': col_to_index(start_col),
+        'endColumnIndex': col_to_index(end_col) + 1,
+    }
+
 def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=200000000):
     print("[0/6] Xac thuc OAuth (Drive ca nhan)...")
     creds = get_user_credentials()
@@ -64,7 +82,7 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
     sh = gc.create(title)
 
     # Share cho service account de n8n co the truy cap
-    sa_email = "qhp-bot@gen-lang-client-0658622290.iam.gserviceaccount.com"
+    sa_email = SERVICE_ACCOUNT_EMAIL
     sh.share(sa_email, perm_type='user', role='writer')
     print(f"  Shared for SA: {sa_email}")
 
@@ -92,12 +110,12 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
     })
     time.sleep(1)
 
-    # --- JOURNAL_LOG ---
-    print("[3/6] Thiet lap JOURNAL_LOG...")
-    ws_journal = sh.add_worksheet(title="JOURNAL_LOG", rows=1000, cols=34)
+    # --- JOURNAL ---
+    print("[3/6] Thiet lap JOURNAL...")
+    ws_journal = sh.add_worksheet(title="JOURNAL", rows=1000, cols=24)
     headers = [col['label'] for col in schema['columns']]
     ws_journal.update([headers], 'A1')
-    ws_journal.format('A1:AH1', {
+    ws_journal.format('A1:X1', {
         "backgroundColor": {"red": 0.04, "green": 0.055, "blue": 0.09},
         "textFormat": {"bold": True, "fontSize": 10, "foregroundColor": {"red": 0.976, "green": 0.976, "blue": 0.976}},
         "horizontalAlignment": "CENTER",
@@ -116,47 +134,59 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
         ('E2:E1000', config['chien_luoc_options']),
         ('F2:F1000', ['Long', 'Short', 'Mua', 'Bán']),
         ('G2:G1000', ['ATO', 'Sáng', 'Chiều', 'ATC']),
-        ('AG2:AG1000', tam_ly),
+        ('V2:V1000', tam_ly),
     ]
+    sheets_api = build('sheets', 'v4', credentials=creds)
+    validation_requests = []
     for rng, opts in dropdowns:
-        try:
-            rule = gspread.worksheet.DataValidationRule(
-                gspread.worksheet.BooleanCondition('ONE_OF_LIST', opts),
-                showCustomUi=True, strict=False
-            )
-            ws_journal.set_data_validation(rng, rule)
-        except Exception as e:
-            print(f"  Warning dropdown {rng}: {e}")
+        validation_requests.append({
+            'setDataValidation': {
+                'range': a1_range_to_grid_range(ws_journal.id, rng),
+                'rule': {
+                    'condition': {
+                        'type': 'ONE_OF_LIST',
+                        'values': [{'userEnteredValue': str(opt)} for opt in opts]
+                    },
+                    'showCustomUi': True,
+                    'strict': False
+                }
+            }
+        })
+    if validation_requests:
+        sheets_api.spreadsheets().batchUpdate(
+            spreadsheetId=sh.id,
+            body={'requests': validation_requests}
+        ).execute()
     time.sleep(1)
 
     # --- SUMMARY ---
     print("[5/6] Thiet lap SUMMARY...")
-    ws_summary = sh.add_worksheet(title="SUMMARY", rows=50, cols=10)
+    ws_summary = sh.add_worksheet(title="SUMMARY", rows=50, cols=26)
     summary = [
         ["📊 THỐNG KÊ TỔNG QUAN", "", ""],
         ["", "", ""],
         ["KPI", "Giá trị", "Ghi chú"],
-        ["Vốn ban đầu", "=CONFIG!B2", "VNĐ"],
+        ["Vốn ban đầu", "=CONFIG!B3", "VNĐ"],
         ["Nạp tiền", "=CONFIG!B7", "VNĐ"],
         ["Rút tiền", "=CONFIG!B8", "VNĐ"],
         ["", "", ""],
-        ["Tổng giao dịch", '=COUNTA(JOURNAL_LOG!D2:D1000)', ""],
-        ["GD Thắng", '=COUNTIF(JOURNAL_LOG!B2:B1000,"*Win*")', ""],
-        ["GD Thua", '=COUNTIF(JOURNAL_LOG!B2:B1000,"*Lose*")', ""],
-        ["GD Hòa", '=COUNTIF(JOURNAL_LOG!B2:B1000,"*Hòa*")', ""],
-        ["GD Đang mở", '=COUNTIF(JOURNAL_LOG!B2:B1000,"*Đang mở*")', ""],
+        ["Tổng giao dịch", '=COUNTA(JOURNAL!D2:D1000)', ""],
+        ["GD Thắng", '=COUNTIF(JOURNAL!A2:A1000,"*Thắng*")', ""],
+        ["GD Thua", '=COUNTIF(JOURNAL!A2:A1000,"*Thua*")', ""],
+        ["GD Hòa", '=COUNTIF(JOURNAL!A2:A1000,"*Hòa*")', ""],
+        ["GD Đang mở", '=COUNTIF(JOURNAL!A2:A1000,"*Đang mở*")', ""],
         ["", "", ""],
-        ["Tỷ lệ thắng", '=IFERROR(COUNTIF(JOURNAL_LOG!B2:B1000,"*Win*")/COUNTA(JOURNAL_LOG!D2:D1000),0)', "%"],
-        ["Lãi/Lỗ Ròng", '=SUM(JOURNAL_LOG!AB2:AB1000)', "VNĐ"],
-        ["Số dư hiện tại", '=CONFIG!B2+SUM(JOURNAL_LOG!AB2:AB1000)+CONFIG!B7-CONFIG!B8', "VNĐ"],
+        ["Tỷ lệ thắng", '=IFERROR(COUNTIF(JOURNAL!A2:A1000,"Thắng")/COUNTIFS(JOURNAL!D2:D1000,"<>",JOURNAL!A2:A1000,"<>Đang mở"),0)', "%"],
+        ["Lãi/Lỗ Ròng", '=SUM(JOURNAL!U2:U1000)', "VNĐ"],
+        ["Số dư hiện tại", '=CONFIG!B3+SUM(JOURNAL!U2:U1000)+CONFIG!B7-CONFIG!B8', "VNĐ"],
         ["", "", ""],
-        ["Thắng TB", '=IFERROR(AVERAGEIF(JOURNAL_LOG!B2:B1000,"*Win*",JOURNAL_LOG!AB2:AB1000),0)', "VNĐ"],
-        ["Thua TB", '=IFERROR(AVERAGEIF(JOURNAL_LOG!B2:B1000,"*Lose*",JOURNAL_LOG!AB2:AB1000),0)', "VNĐ"],
-        ["RRR Trung bình", '=IFERROR(AVERAGE(JOURNAL_LOG!U2:U1000),0)', ""],
-        ["Hệ số lợi nhuận", '=IFERROR(SUMIF(JOURNAL_LOG!B2:B1000,"*Win*",JOURNAL_LOG!AB2:AB1000)/ABS(SUMIF(JOURNAL_LOG!B2:B1000,"*Lose*",JOURNAL_LOG!AB2:AB1000)),0)', "Profit Factor"],
-        ["Max Drawdown %", '=IFERROR(MIN(JOURNAL_LOG!AE2:AE1000),0)', "%"],
-        ["Tổng phí GD", '=SUM(JOURNAL_LOG!Z2:Z1000)', "VNĐ"],
-        ["Tổng thuế", '=SUM(JOURNAL_LOG!AA2:AA1000)', "VNĐ"],
+        ["Thắng TB", '=IFERROR(AVERAGEIF(JOURNAL!A2:A1000,"Thắng",JOURNAL!U2:U1000),0)', "VNĐ"],
+        ["Thua TB", '=IFERROR(AVERAGEIF(JOURNAL!A2:A1000,"Thua",JOURNAL!U2:U1000),0)', "VNĐ"],
+        ["RRR Trung bình", '=IFERROR(AVERAGE(JOURNAL!U2:U1000),0)', ""],
+        ["Hệ số lợi nhuận", '=IFERROR(SUMIF(JOURNAL!A2:A1000,"Thắng",JOURNAL!U2:U1000)/ABS(SUMIF(JOURNAL!A2:A1000,"Thua",JOURNAL!U2:U1000)),0)', "Profit Factor"],
+        ["Max Drawdown %", '=IFERROR(MIN(JOURNAL!U2:U1000),0)', "%"],
+        ["Tổng phí GD", '=SUM(JOURNAL!T2:T1000)', "VNĐ"],
+        ["Tổng thuế", '=0', "VNĐ"],
     ]
     ws_summary.update(summary, 'A1')
     ws_summary.format('A1', {"textFormat": {"bold": True, "fontSize": 14, "foregroundColor": {"red": 0.23, "green": 0.51, "blue": 0.96}}})
@@ -170,7 +200,7 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
     print(f"\n{'='*60}")
     print(f"  TAO THANH CONG!")
     print(f"  URL: {sh.url}")
-    print(f"  Sheets: CONFIG | JOURNAL_LOG | SUMMARY")
+    print(f"  Sheets: CONFIG | JOURNAL | SUMMARY")
     print(f"  Von: {initial_capital:,.0f} VND")
     print(f"  SA access: {sa_email}")
     print(f"{'='*60}")

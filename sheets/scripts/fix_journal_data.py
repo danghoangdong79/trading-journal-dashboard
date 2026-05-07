@@ -1,11 +1,12 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def fix_data_and_format():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -28,7 +29,7 @@ def fix_data_and_format():
         cells = []
         for i, val in enumerate(new_tamly):
             cells.append([val])
-        ws_setup.update(f'Z{start_row}', cells, value_input_option='USER_ENTERED')
+        ws_setup.update(values=cells, range_name=f'Z{start_row}', value_input_option='USER_ENTERED')
         
     # 2. Modify some rows to exactly hit SL or TP
     # We will fetch all data and find the rows we inserted earlier.

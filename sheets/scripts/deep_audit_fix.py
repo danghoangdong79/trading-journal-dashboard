@@ -1,12 +1,13 @@
 """Deep Audit and Fix Logic & Formats - Fixed names"""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
@@ -34,7 +35,7 @@ def deep_audit():
         ["Phí+Thuế / 1 HĐ / 1 Chiều (VND)", 4000]
     ]
     ws_cfg.batch_clear(["A1:B20"])
-    ws_cfg.update('A1', cfg_data, value_input_option='USER_ENTERED')
+    ws_cfg.update(values=cfg_data, range_name='A1', value_input_option='USER_ENTERED')
     ws_cfg.format('A4:B7', {"numberFormat": {"type": "PERCENT"}})
     ws_cfg.format('B4', {"numberFormat": {"type": "NUMBER"}})
     ws_cfg.format('B10:B11', {"numberFormat": {"type": "NUMBER"}})

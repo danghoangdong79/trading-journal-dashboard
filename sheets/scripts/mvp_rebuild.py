@@ -1,12 +1,13 @@
 """Xây dựng Database MVP tối ưu cho thị trường Việt Nam"""
 import json, os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 
-TOKEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'credentials', 'token.json')
-SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I'
+TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
+SHEET_ID = CONFIGURED_SHEET_ID
 
 def get_gc():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, [
@@ -22,7 +23,7 @@ def mvp_rebuild():
 
     print("1. Dọn dẹp các sheet cũ...")
     existing = sh.worksheets()
-    keep_titles = ["CONFIG", "JOURNAL_LOG", "SUMMARY"]
+    keep_titles = ["CONFIG", "JOURNAL", "SUMMARY"]
     
     # Ensure core sheets exist so we can delete others safely
     for title in keep_titles + ["LISTS"]:
@@ -57,26 +58,26 @@ def mvp_rebuild():
         ["Nạp tiền", 0, "VNĐ"],
         ["Rút tiền", 0, "VNĐ"],
     ]
-    ws_cfg.update('A1', cfg_data)
+    ws_cfg.update(values=cfg_data, range_name='A1')
     ws_cfg.format('A3:C3', {"backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.3}, "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}})
 
     print("3. Cài đặt LISTS...")
     ws_lists = sh.worksheet("LISTS")
     ws_lists.clear()
-    ws_lists.update('A1', [["Mã Phái Sinh", "Mã Cổ Phiếu", "Chiến Lược", "Tâm Lý"]])
+    ws_lists.update(values=[["Mã Phái Sinh", "Mã Cổ Phiếu", "Chiến Lược", "Tâm Lý"]], range_name='A1')
     ps = [["VN30F1M"], ["VN30F2M"], ["VN30F1Q"], ["VN30F2Q"]]
     cp = [[t] for t in ["HPG","FPT","VNM","MWG","TCB","MBB","SSI","VND","VPB","STB","DIG","DXG","PDR","NVL","VHM","VIC"]]
     strat = [[s] for s in ["Breakout", "Pullback", "MA Cross", "Tích lũy nền", "Bắt đáy", "Tin tức"]]
     psy = [[p] for p in ["Bình tĩnh", "Kỷ luật", "FOMO", "Sợ hãi", "Trả thù", "Thiếu kiên nhẫn"]]
     
-    ws_lists.update('A2', ps)
-    ws_lists.update('B2', cp)
-    ws_lists.update('C2', strat)
-    ws_lists.update('D2', psy)
+    ws_lists.update(values=ps, range_name='A2')
+    ws_lists.update(values=cp, range_name='B2')
+    ws_lists.update(values=strat, range_name='C2')
+    ws_lists.update(values=psy, range_name='D2')
     ws_lists.format('A1:D1', {"backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.3}, "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}})
 
-    print("4. Cài đặt JOURNAL_LOG (Auto-Calculated)...")
-    ws_jl = sh.worksheet("JOURNAL_LOG")
+    print("4. Cài đặt JOURNAL (Auto-Calculated)...")
+    ws_jl = sh.worksheet("JOURNAL")
     ws_jl.clear()
     
     # Headers combining raw data and ArrayFormulas for auto calculation
@@ -108,7 +109,7 @@ def mvp_rebuild():
         "borders": {"bottom": {"style": "SOLID", "color": {"red": 0.23, "green": 0.51, "blue": 0.96}}}
     })
 
-    # Dropdowns for JOURNAL_LOG using API
+    # Dropdowns for JOURNAL using API
     journal_sid = ws_jl.id
     lists_sid = ws_lists.id
     
@@ -160,21 +161,21 @@ def mvp_rebuild():
         ["Vốn ban đầu", "=CONFIG!B4", "VNĐ"],
         ["Nạp Rút ròng", "=CONFIG!B11-CONFIG!B12", "VNĐ"],
         ["", "", ""],
-        ["Tổng số lệnh", '=COUNTA(JOURNAL_LOG!A2:A2000)', ""],
-        ["Lệnh Thắng", '=COUNTIF(JOURNAL_LOG!A2:A2000,"Win")', ""],
-        ["Lệnh Thua", '=COUNTIF(JOURNAL_LOG!A2:A2000,"Lose")', ""],
+        ["Tổng số lệnh", '=COUNTA(JOURNAL!A2:A2000)', ""],
+        ["Lệnh Thắng", '=COUNTIF(JOURNAL!A2:A2000,"Win")', ""],
+        ["Lệnh Thua", '=COUNTIF(JOURNAL!A2:A2000,"Lose")', ""],
         ["Win Rate", '=IFERROR(B8/B7, 0)', "%"],
         ["", "", ""],
-        ["Tổng Lãi/Lỗ Gộp", '=SUM(JOURNAL_LOG!O2:O2000)', "VNĐ"],
-        ["Tổng Phí & Thuế", '=SUM(JOURNAL_LOG!P2:P2000)', "VNĐ"],
-        ["Lãi/Lỗ Ròng", '=SUM(JOURNAL_LOG!Q2:Q2000)', "VNĐ"],
+        ["Tổng Lãi/Lỗ Gộp", '=SUM(JOURNAL!O2:O2000)', "VNĐ"],
+        ["Tổng Phí & Thuế", '=SUM(JOURNAL!P2:P2000)', "VNĐ"],
+        ["Lãi/Lỗ Ròng", '=SUM(JOURNAL!Q2:Q2000)', "VNĐ"],
         ["Số dư hiện tại", '=B4+B5+B14', "VNĐ"],
         ["", "", ""],
-        ["Trung bình Thắng", '=IFERROR(AVERAGEIF(JOURNAL_LOG!A2:A2000,"Win",JOURNAL_LOG!Q2:Q2000),0)', "VNĐ"],
-        ["Trung bình Thua", '=IFERROR(AVERAGEIF(JOURNAL_LOG!A2:A2000,"Lose",JOURNAL_LOG!Q2:Q2000),0)', "VNĐ"],
-        ["Profit Factor", '=IFERROR(SUMIF(JOURNAL_LOG!A2:A2000,"Win",JOURNAL_LOG!Q2:Q2000)/ABS(SUMIF(JOURNAL_LOG!A2:A2000,"Lose",JOURNAL_LOG!Q2:Q2000)),0)', ""],
+        ["Trung bình Thắng", '=IFERROR(AVERAGEIF(JOURNAL!A2:A2000,"Win",JOURNAL!Q2:Q2000),0)', "VNĐ"],
+        ["Trung bình Thua", '=IFERROR(AVERAGEIF(JOURNAL!A2:A2000,"Lose",JOURNAL!Q2:Q2000),0)', "VNĐ"],
+        ["Profit Factor", '=IFERROR(SUMIF(JOURNAL!A2:A2000,"Win",JOURNAL!Q2:Q2000)/ABS(SUMIF(JOURNAL!A2:A2000,"Lose",JOURNAL!Q2:Q2000)),0)', ""],
     ]
-    ws_sum.update('A1', summary, value_input_option='USER_ENTERED')
+    ws_sum.update(values=summary, range_name='A1', value_input_option='USER_ENTERED')
     ws_sum.format('A1', {"textFormat": {"bold": True, "fontSize": 14}})
     ws_sum.format('A3:C3', {"backgroundColor": {"red": 0.1, "green": 0.1, "blue": 0.2}, "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}}})
 
