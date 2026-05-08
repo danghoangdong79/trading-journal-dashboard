@@ -5,7 +5,7 @@ Bảng điều khiển (Control Panel) khai báo các Hằng số, Mục tiêu Q
 ## Bố cục Block
 
 ### 1. THAM SỐ GIAO DỊCH (A1:C8)
-Dùng để tính Lãi/Lỗ Gộp và Phí/Thuế chính xác đến từng đồng.
+Dùng làm fallback cho công thức. Từ giai đoạn 2, phí thực tế ưu tiên đọc từ tab `FEE_PROFILE` theo tài khoản + tài sản + ngày hiệu lực.
 
 | Tham số | Ô tham chiếu | Ví dụ | Diễn giải |
 |---|---|---|---|
@@ -15,6 +15,33 @@ Dùng để tính Lãi/Lỗ Gộp và Phí/Thuế chính xác đến từng đ�
 | **Hệ số điểm Phái sinh** | `C6` | 100,000 | 1 Điểm VN30F tương đương 100,000 VNĐ. |
 | **Phí giao dịch Phái sinh** | `C7` | 4,000 | Phí tính trên 1 Hợp đồng (Thường thu 4k khi Mở và 4k khi Đóng). |
 | **Thuế Phái sinh (ước tính)** | `C8` | 1,000 | Ước tính mức Thuế TNCN tính trên mỗi Hợp đồng. Tổng cộng Phí & Thuế = 5,000đ/lượt. |
+
+### 1B. FEE_PROFILE — cấu hình phí theo ngày hiệu lực
+
+Tab `FEE_PROFILE` là nguồn chuẩn mới cho phí/thuế. Mỗi dòng là một profile phí, có thể áp dụng cho toàn bộ tài khoản bằng **để trống**, `*` hoặc `Tất cả`; hoặc áp dụng riêng cho một tài khoản cụ thể lấy từ `SETUP!AJ:AL`.
+
+| Cột | Trường | Diễn giải |
+|---|---|---|
+| A | Tài khoản | Dropdown từ `FORMULAS!K:K`: `Tất cả`, `*`, hoặc ID tài khoản trong `SETUP!AJ:AJ`. Để trống/`*`/`Tất cả` = áp dụng mọi tài khoản. |
+| B | Tài sản | `Cổ phiếu` hoặc `Phái sinh`. |
+| C | Từ ngày | Ngày bắt đầu hiệu lực. |
+| D | Đến ngày | Để trống nếu còn hiệu lực. |
+| E:G | Phí/thuế cổ phiếu | Phí mua, phí bán, thuế bán. |
+| H:J | Phí phái sinh | CTCK, Sở, VSD theo HĐ/chiều. |
+| K:M | Phí QLTS ký quỹ PS | Tỷ lệ 0,0024%/tháng, tối thiểu 100.000đ/tháng, tối đa 1.600.000đ/tháng. |
+| N:O | Hệ số | Giá trị 1 điểm PS và hệ số giá CP. |
+
+Quy tắc chọn profile: công thức trong `JOURNAL` lấy dòng có `Từ ngày` mới nhất, còn hiệu lực tại ngày đóng lệnh, ưu tiên tài khoản cụ thể hơn dòng mặc định `trống/*/Tất cả`.
+
+### 1C. FEE_CHARGES — phí định kỳ/ngoài từng lệnh
+
+Các phí không thể quy chính xác cho từng dòng lệnh, đặc biệt **Dịch vụ quản lý tài sản ký quỹ phái sinh**, được ghi ở tab `FEE_CHARGES` để audit riêng.
+
+- Phí giao dịch PS theo lệnh trong `JOURNAL`: `Phí CTCK + Phí Sở 2.700 + Phí VSD bù trừ 2.550`, nhân số HĐ và 2 chiều khi lệnh đã đóng.
+- Phí QLTS ký quỹ PS: `MIN(MAX(Cơ sở tính phí * 0,0024%, 100.000), 1.600.000)` theo tháng/tài khoản, cần nhập cơ sở tính phí là số dư tài sản ký quỹ lũy kế/tháng từ sao kê VPS.
+- Không gộp phí QLTS vào từng trade nếu chưa có dữ liệu số dư ký quỹ, để tránh làm sai PnL từng lệnh.
+- Công thức `FEE_CHARGES!J:J` tự tính phí theo cơ sở/tỷ lệ/min/max; `K:K` dùng để nhập **phí thực thu** từ sao kê nếu có; `L:L` là **phí hạch toán** ưu tiên phí thực thu, nếu trống thì dùng phí tính.
+- `FEE_CHARGES` có dropdown tài khoản/tài sản/loại phí/trạng thái. Nếu tài khoản để trống/`*`/`Tất cả` thì hiểu là áp dụng chung; nếu chọn mã tài khoản cụ thể thì ưu tiên theo profile riêng trong `FEE_PROFILE`.
 
 ### 2. QUẢN TRỊ RỦI RO & MỤC TIÊU (E1:G7)
 Tham số cho hệ thống Dashboard cảnh báo & gamification.

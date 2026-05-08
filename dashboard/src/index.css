@@ -25,8 +25,8 @@
   --watermark-icon: rgba(15, 23, 42, 0.035);
   --chart-grid: rgba(15, 23, 42, 0.08);
   --chart-axis: #667085;
-  --heatmap-positive-text: #ecfdf5;
-  --heatmap-negative-text: #fff1f2;
+  --heatmap-positive-text: #064e3b;
+  --heatmap-negative-text: #7f1d1d;
   --sidebar-bg: rgba(255, 255, 255, 0.78);
   --sidebar-fg: #0f172a;
   --sidebar-muted: #64748b;

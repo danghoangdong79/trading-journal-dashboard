@@ -11,6 +11,7 @@ from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
 from settings import CREDENTIALS_DIR, SCOPES, SERVICE_ACCOUNT_EMAIL, TOKEN_PATH
+from fee_profile import ensure_fee_profile_sheet, ensure_fee_charges_sheet, apply_fee_profile_formulas
 
 CREDS_DIR = str(CREDENTIALS_DIR)
 TOKEN_PATH = str(TOKEN_PATH)
@@ -110,6 +111,12 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
     })
     time.sleep(1)
 
+    print("[2.5/6] Thiet lap FEE_PROFILE...")
+    sheets_api = build('sheets', 'v4', credentials=creds)
+    ensure_fee_profile_sheet(sh, sheets_api)
+    ensure_fee_charges_sheet(sh, sheets_api)
+    time.sleep(1)
+
     # --- JOURNAL ---
     print("[3/6] Thiet lap JOURNAL...")
     ws_journal = sh.add_worksheet(title="JOURNAL", rows=1000, cols=24)
@@ -136,7 +143,6 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
         ('G2:G1000', ['ATO', 'Sáng', 'Chiều', 'ATC']),
         ('V2:V1000', tam_ly),
     ]
-    sheets_api = build('sheets', 'v4', credentials=creds)
     validation_requests = []
     for rng, opts in dropdowns:
         validation_requests.append({
@@ -157,6 +163,7 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
             spreadsheetId=sh.id,
             body={'requests': validation_requests}
         ).execute()
+    apply_fee_profile_formulas(ws_journal)
     time.sleep(1)
 
     # --- SUMMARY ---
@@ -200,7 +207,7 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
     print(f"\n{'='*60}")
     print(f"  TAO THANH CONG!")
     print(f"  URL: {sh.url}")
-    print(f"  Sheets: CONFIG | JOURNAL | SUMMARY")
+    print(f"  Sheets: CONFIG | FEE_PROFILE | FEE_CHARGES | JOURNAL | SUMMARY")
     print(f"  Von: {initial_capital:,.0f} VND")
     print(f"  SA access: {sa_email}")
     print(f"{'='*60}")

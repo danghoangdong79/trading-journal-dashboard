@@ -5,6 +5,7 @@ from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_T
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
+from fee_profile import ensure_fee_profile_sheet, ensure_fee_charges_sheet, apply_fee_profile_formulas
 
 TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
 SHEET_ID = CONFIGURED_SHEET_ID
@@ -32,13 +33,15 @@ def deep_audit():
         ["", ""],
         ["THỊ TRƯỜNG PHÁI SINH", ""],
         ["Hệ số nhân Phái Sinh (VND)", 100000],
-        ["Phí+Thuế / 1 HĐ / 1 Chiều (VND)", 4000]
+        ["Phí PS dự phòng / HĐ / Chiều (VND)", 5250]
     ]
     ws_cfg.batch_clear(["A1:B20"])
     ws_cfg.update(values=cfg_data, range_name='A1', value_input_option='USER_ENTERED')
     ws_cfg.format('A4:B7', {"numberFormat": {"type": "PERCENT"}})
     ws_cfg.format('B4', {"numberFormat": {"type": "NUMBER"}})
     ws_cfg.format('B10:B11', {"numberFormat": {"type": "NUMBER"}})
+    ensure_fee_profile_sheet(sh, sheets_api)
+    ensure_fee_charges_sheet(sh, sheets_api)
 
     print("2. Audit & Fix ArrayFormulas trong JOURNAL...")
     ws_nk = sh.worksheet("JOURNAL")
@@ -46,23 +49,12 @@ def deep_audit():
     # Biên độ = O - N (Long/Mua) hoặc N - O (Short/Bán)
     f_biendo = '={"Biên Độ"; ARRAYFORMULA(IF(A2:A="", "", IF(O2:O="", "", IF(REGEXMATCH(UPPER(E2:E), "MUA|LONG"), O2:O-N2:N, N2:N-O2:O))))}'
     
-    # Lãi Gộp
-    f_laigop = '={"Lãi/Lỗ Gộp"; ARRAYFORMULA(IF(A2:A="", "", IF(O2:O="", "", R2:R * M2:M * IF(C2:C="Phái sinh", CONFIG!$B$10, CONFIG!$B$4))))}'
-    
-    # Phí Thuế
-    f_phithue = '={"Phí & Thuế"; ARRAYFORMULA(IF(A2:A="", "", IF(O2:O="", "", IF(C2:C="Phái sinh", M2:M*CONFIG!$B$11*2, (N2:N*M2:M*CONFIG!$B$4*CONFIG!$B$6) + (O2:O*M2:M*CONFIG!$B$4*(CONFIG!$B$7+CONFIG!$B$5))))))}'
-    
-    # Lãi Ròng
-    f_lairong = '={"Lãi/Lỗ Ròng"; ARRAYFORMULA(IF(A2:A="", "", IF(O2:O="", "", S2:S - T2:T)))}'
-    
     # Số Ngày
     f_songay = '={"Số Ngày"; ARRAYFORMULA(IF(A2:A="", "", IF(J2:J="", "Đang mở", J2:J - H2:H)))}'
     
     ws_nk.update_acell('L1', f_songay)
     ws_nk.update_acell('R1', f_biendo)
-    ws_nk.update_acell('S1', f_laigop)
-    ws_nk.update_acell('T1', f_phithue)
-    ws_nk.update_acell('U1', f_lairong)
+    apply_fee_profile_formulas(ws_nk)
 
     print("3. Audit Format & Data Sample...")
     try:

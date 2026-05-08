@@ -5,6 +5,7 @@ from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_T
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
 import gspread
+from fee_profile import ensure_fee_profile_sheet, ensure_fee_charges_sheet, apply_fee_profile_formulas
 
 TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
 SHEET_ID = CONFIGURED_SHEET_ID
@@ -75,14 +76,12 @@ def rebuild():
     v_reqs = [{'setDataValidation': {'range': {'sheetId': ws_config.id, 'startRowIndex': 3, 'endRowIndex': 4, 'startColumnIndex': 10, 'endColumnIndex': 11}, 'rule': {'condition': {'type': 'BOOLEAN'}, 'showCustomUi': True}}}]
     sheets_api.spreadsheets().batchUpdate(spreadsheetId=SHEET_ID, body={'requests': v_reqs}).execute()
 
-    # Update JOURNAL ArrayFormulas
-    s_f = '={"Lãi/Lỗ Gộp"; ARRAYFORMULA(IF(D2:D="", "", IF(O2:O="", "", R2:R * M2:M * IF(C2:C="Phái sinh", CONFIG!$C$6, CONFIG!$C$3))))}'
-    t_f = '={"Phí & Thuế"; ARRAYFORMULA(IF(D2:D="", "", IF(O2:O="", "", IF(C2:C="Phái sinh", M2:M * CONFIG!$C$7 * 2, (N2:N * M2:M * CONFIG!$C$3 * CONFIG!$C$4) + (O2:O * M2:M * CONFIG!$C$3 * (CONFIG!$C$4 + CONFIG!$C$5))))))}'
-    
-    ws_journal.update_acell('S1', s_f)
-    ws_journal.update_acell('T1', t_f)
+    # Stage-2 fee management: account/asset/date effective fee profile.
+    ensure_fee_profile_sheet(sh, sheets_api)
+    ensure_fee_charges_sheet(sh, sheets_api)
+    apply_fee_profile_formulas(ws_journal)
 
-    print("Rebuilt CONFIG and updated JOURNAL formulas successfully!")
+    print("Rebuilt CONFIG, FEE_PROFILE, FEE_CHARGES and updated JOURNAL formulas successfully!")
 
 if __name__ == '__main__':
     rebuild()

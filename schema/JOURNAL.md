@@ -25,7 +25,7 @@ Tab `JOURNAL` la bang du lieu giao dich chinh. Repo hien chuan hoa theo layout O
 | **Q** | **Chot Loi (TP)** | | Number | Muc chot loi. |
 | **R** | **Bien Do** | `[AUTO]` | Formula | Chenh lech gia theo chieu vi the. |
 | **S** | **Lai/Lo Gop** | `[AUTO]` | Formula | Lai/lo truoc phi thue. |
-| **T** | **Phi & Thue** | `[AUTO]` | Formula | Phi va thue theo `CONFIG`. |
+| **T** | **Phi & Thue** | `[AUTO]` | Formula | Phi va thue theo `FEE_PROFILE`, fallback ve `CONFIG` neu chua co profile. |
 | **U** | **Lai/Lo Rong** | `[AUTO]` | Formula | Lai/Lo Gop - Phi & Thue. |
 | **V** | **Tam Ly** | | Dropdown | Nguon tu `FORMULAS!D:D`. |
 | **W** | **Ghi Chu Review** | | Text | Ghi chu review lenh. |
@@ -36,8 +36,8 @@ Tab `JOURNAL` la bang du lieu giao dich chinh. Repo hien chuan hoa theo layout O
 - `A1`: array formula tinh trang thai.
 - `L1`: array formula tinh so ngay nam giu.
 - `R1`: array formula tinh bien do theo `LONG/SHORT`.
-- `S1`: array formula tinh lai/lo gop.
-- `T1`: array formula tinh phi & thue.
+- `S1`: `MAP/LET` formula tinh lai/lo gop theo he so trong `FEE_PROFILE` tai ngay dong lenh; tài khoản trống/`Tất cả` sẽ fallback về profile mặc định.
+- `T1`: `MAP/LET` formula tinh phi & thue theo tai khoan + tai san + ngay hieu luc trong `FEE_PROFILE`; ưu tiên tài khoản cụ thể, sau đó tới dòng mặc định trống/`*`/`Tất cả`.
 - `U1`: array formula tinh lai/lo rong.
 - `X2`: array formula map nhom nganh tu `SETUP`.
 

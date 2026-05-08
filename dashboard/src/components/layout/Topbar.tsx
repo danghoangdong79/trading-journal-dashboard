@@ -1,4 +1,4 @@
-import { Download, ExternalLink, Menu, RefreshCw, X } from 'lucide-react';
+import { ExternalLink, Menu, RefreshCw, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useApp } from '../../context.tsx';
 import { cn, formatCurrency, buildSheetUrl } from '../../lib/utils.ts';
@@ -25,42 +25,9 @@ const SHEET_SHORTCUTS: Record<string, string> = {
 
 export default function Topbar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isMobileMenuOpen: boolean; setIsMobileMenuOpen: (val: boolean) => void }) {
   const location = useLocation();
-  const { stats, trades, refreshData, isLoading, settings, authState, logout } = useApp();
+  const { stats, refreshData, isLoading, settings, authState, logout } = useApp();
   const sheetRange = SHEET_SHORTCUTS[location.pathname] || 'JOURNAL!A1:X2000';
   const sheetUrl = buildSheetUrl(settings.sheetId, sheetRange, settings.journalGid, settings.configGid);
-
-  const exportCsv = () => {
-    const header = ['Trạng thái', 'Tài khoản', 'Tài sản', 'Mã', 'Vị thế', 'Ngày mở', 'Giờ mở', 'Ngày đóng', 'Giờ đóng', 'Khối lượng', 'Giá vào', 'Giá đóng', 'Lãi/Lỗ ròng', 'Chiến lược', 'Tâm lý', 'Nhóm ngành'];
-    const rows = trades.map((trade) => [
-      trade.status,
-      trade.account,
-      trade.assetType,
-      trade.symbol,
-      trade.position,
-      trade.openDate,
-      trade.openTime,
-      trade.closeDate,
-      trade.closeTime,
-      trade.volume,
-      trade.entryPrice,
-      trade.exitPrice,
-      trade.netPnL,
-      trade.strategy,
-      trade.mood,
-      trade.sector,
-    ]);
-    const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    const csv = [header, ...rows].map((row) => row.map(escape).join(',')).join('\n');
-    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `dahodo-trades-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--card-border)] bg-[var(--topbar-bg)] px-4 backdrop-blur-xl transition-colors duration-300 sm:px-7">
@@ -109,13 +76,10 @@ export default function Topbar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isMo
           <button onClick={() => void refreshData()} disabled={isLoading} className="rounded-lg p-2 text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground disabled:opacity-50" title="Tải lại dữ liệu">
             <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
           </button>
-          <button onClick={exportCsv} disabled={trades.length === 0} className="rounded-lg p-2 text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground disabled:opacity-40" title="Xuất dữ liệu">
-            <Download size={16} />
-          </button>
         </div>
 
         <div className={cn('hidden rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] sm:block', settings.isDemoMode ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-[var(--accent-soft)] text-[var(--accent)]')}>
-          {settings.isDemoMode ? 'Dữ liệu mẫu' : 'Sheet thật'}
+          {settings.isDemoMode ? 'Dữ liệu mẫu' : 'Đã kết nối'}
         </div>
         {authState.isAuthenticated && authState.username !== 'Guest' && <button onClick={logout} className="ml-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--muted)] transition-colors hover:text-foreground sm:ml-2">{'Đăng xuất'}</button>}
       </div>

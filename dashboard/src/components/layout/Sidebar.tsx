@@ -40,6 +40,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isM
 
   const ThemeIcon = theme === 'system' ? Monitor : theme === 'dark' ? Moon : Sun;
   const themeLabel = theme === 'system' ? 'Theo hệ thống' : theme === 'dark' ? 'Tối' : 'Sáng';
+  const siteName = settings.siteName || 'Dahodo.Journal';
   const customerName = settings.appName || DEFAULT_CUSTOMER_NAME;
 
   return (
@@ -70,8 +71,8 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isM
             </div>
             {!isCollapsed && (
               <div className="min-w-0">
-                <div className="truncate text-[15px] font-extrabold leading-tight tracking-[-0.03em] text-[var(--sidebar-fg)]">Dahodo.Journal</div>
-                <div className="mt-1 truncate text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-[var(--accent)]">Khách hàng: {customerName}</div>
+                <div className="truncate text-[15px] font-extrabold leading-tight tracking-[-0.03em] text-[var(--sidebar-fg)]">{siteName}</div>
+                <div className="mt-1 truncate text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-[var(--accent)]">{customerName}</div>
               </div>
             )}
           </div>
