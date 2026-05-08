@@ -7,6 +7,19 @@ import { Card } from '../components/ui/Card.tsx';
 import { formatCurrency, formatPercent } from '../lib/utils.ts';
 import { cn } from '../lib/utils.ts';
 
+function normalizeText(value: string) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isEnabledStatus(value: string) {
+  const normalized = normalizeText(value);
+  return normalized === 'bat' || normalized === 'enabled' || normalized === 'active' || normalized === 'true' || normalized === '1' || normalized === 'on';
+}
+
 function SettingsPanel({ title, subtitle, children, defaultOpen = false }: { title: string; subtitle?: string; children: ReactNode; defaultOpen?: boolean }) {
   return (
     <details open={defaultOpen} className="group premium-card p-4">
@@ -35,7 +48,7 @@ const METRIC_DEFINITIONS: { key: MetricKey; label: string; meaning: string; inpu
 ];
 
 export default function Settings() {
-  const { settings, updateSettings, isLoading, refreshData, error, authState, logout, theme, setTheme, sheetConfig, effectiveRisk } = useApp();
+  const { settings, updateSettings, isLoading, isAuthLoading, refreshData, error, authError, authState, logout, theme, setTheme, sheetConfig, effectiveRisk, sheetUsers } = useApp();
   const [localSheetId, setLocalSheetId] = useState(settings.sheetId);
   const [localApiKey, setLocalApiKey] = useState(settings.apiKey);
   const [journalGid, setJournalGid] = useState(settings.journalGid || '913303097');
@@ -51,10 +64,15 @@ export default function Settings() {
   const [metricDraft, setMetricDraft] = useState(settings.metrics);
   const [metricSaveSuccess, setMetricSaveSuccess] = useState(false);
   const isSheetRiskActive = Boolean(sheetConfig);
+  const enabledUsers = sheetUsers.filter((user) => isEnabledStatus(user.status));
 
   useEffect(() => {
     setRiskDraft(effectiveRisk);
   }, [effectiveRisk]);
+
+  useEffect(() => {
+    setUsername(settings.auth?.username || 'admin');
+  }, [settings.auth?.username]);
 
   const handleSaveSheet = () => {
     const nextSheetId = localSheetId.trim();
@@ -126,7 +144,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <SettingsPanel title="Tài khoản đăng nhập" subtitle="Thông tin account hiển thị. Mật khẩu/quyền nằm trong tab USERS.">
+      <SettingsPanel title="Tài khoản đăng nhập" subtitle="Runtime bắt buộc đọc tab USERS. Local chỉ lưu bật/tắt login, user gợi ý và ghi nhớ phiên.">
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
@@ -134,19 +152,34 @@ export default function Settings() {
               <p className="mt-1 text-[13px] font-bold text-foreground">{settings.auth.enabled ? 'Đang bật đăng nhập' : 'Không yêu cầu đăng nhập'}</p>
             </div>
             <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
-              <p className="type-caption text-[10px]">Tài khoản hiện tại</p>
-              <p className="mt-1 text-[13px] font-bold text-foreground">{authState.username || settings.auth.username || 'Guest'}</p>
+              <p className="type-caption text-[10px]">User đang dùng</p>
+              <p className="mt-1 text-[13px] font-bold text-foreground">{authState.displayName || authState.username || settings.auth.username || 'Guest'}</p>
             </div>
             <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
-              <p className="type-caption text-[10px]">Database</p>
+              <p className="type-caption text-[10px]">USERS đang bật</p>
+              <p className="mt-1 text-[13px] font-bold text-foreground">{isAuthLoading ? 'Đang đọc...' : `${enabledUsers.length}/${sheetUsers.length}`}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
+              <p className="type-caption text-[10px]">Nguồn runtime</p>
               <p className="mt-1 text-[13px] font-bold text-foreground">USERS</p>
+            </div>
+            <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
+              <p className="type-caption text-[10px]">Vai trò</p>
+              <p className="mt-1 text-[13px] font-bold text-foreground">{authState.role || 'Theo USERS'}</p>
+            </div>
+            <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
+              <p className="type-caption text-[10px]">User gợi ý</p>
+              <p className="mt-1 text-[13px] font-bold text-foreground">{settings.auth.username || 'admin'}</p>
             </div>
           </div>
 
           <div className="flex items-center justify-between rounded-md border border-[var(--accent)]/10 bg-[var(--accent-soft)] p-3">
             <div>
               <h4 className="text-[13px] font-bold text-foreground">Bật đăng nhập</h4>
-              <p className="type-caption text-[11px]">Khi chuyển Apps Script, chỉ user trong USERS và trạng thái Bật đăng nhập được.</p>
+              <p className="type-caption text-[11px]">Chỉ dòng có username, mật khẩu mã hóa và trạng thái Bật trong USERS mới đăng nhập được.</p>
             </div>
             <button onClick={() => setAuthEnabled(!authEnabled)} className={cn('relative h-5 w-10 rounded-full transition-colors', authEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--muted)]')}>
               <div className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all shadow-sm', authEnabled ? 'left-[22px]' : 'left-0.5')} />
@@ -156,13 +189,13 @@ export default function Settings() {
           {authEnabled && (
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 type-title text-[10px]"><User size={11} />Tên đăng nhập mặc định</label>
+                <label className="flex items-center gap-1.5 type-title text-[10px]"><User size={11} />Tài khoản gợi ý ở màn login</label>
                 <input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Ví dụ: admin" className={inputClass} />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
-                  <p className="type-caption text-[10px]">Quyền</p>
-                  <p className="mt-1 text-[13px] font-bold text-foreground">Theo tab USERS</p>
+                  <p className="type-caption text-[10px]">Mật khẩu</p>
+                  <p className="mt-1 text-[13px] font-bold text-foreground">Đọc hash từ USERS</p>
                 </div>
                 <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
                   <p className="type-caption text-[10px]">Ghi nhớ</p>
@@ -176,10 +209,26 @@ export default function Settings() {
             </div>
           )}
 
+          {authError && (
+            <div className="flex gap-3 rounded-md border border-[var(--loss)]/15 bg-[var(--loss)]/5 p-3">
+              <AlertCircle size={16} className="mt-0.5 shrink-0 text-[var(--loss)]" />
+              <div className="type-caption text-[11px] leading-relaxed">
+                <p className="mb-1 font-bold text-[var(--loss)]">USERS chưa đọc được</p>
+                <p>{authError}</p>
+              </div>
+            </div>
+          )}
+
+          {!authError && authEnabled && (
+            <div className="rounded-md border border-[var(--accent)]/10 bg-[var(--accent-soft)] p-3 text-[12px] leading-5 text-[var(--muted)]">
+              Runtime đang đọc trực tiếp <span className="font-mono text-foreground">USERS!A:G</span>. Username local chỉ để điền sẵn ô login; xác thực thật dùng <span className="font-semibold text-foreground">Tên đăng nhập + Mật khẩu mã hóa + Trạng thái</span> trong sheet.
+            </div>
+          )}
+
           <div className="space-y-3 border-t border-[var(--card-border)] pt-3">
             <button onClick={handleSaveAuth} className="flex w-full items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2.5 text-[13px] font-bold text-background transition-all hover:opacity-90">
               {authSaveSuccess ? <CheckCircle size={16} /> : <Save size={16} />}
-              {authSaveSuccess ? 'Đã lưu tài khoản' : 'Lưu tài khoản'}
+              {authSaveSuccess ? 'Đã lưu cấu hình login' : 'Lưu cấu hình login'}
             </button>
             {settings.auth.enabled && authState.isAuthenticated && (
               <button onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-md border border-[var(--card-border)] px-4 py-2.5 text-[13px] font-bold text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground">

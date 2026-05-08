@@ -59,16 +59,27 @@ export interface TradingStats {
   openTrades: number;
 }
 
+export interface SheetUser {
+  rowNumber: number;
+  username: string;
+  passwordHash: string;
+  role: string;
+  displayName: string;
+  status: string;
+  lastLoginAt: string;
+}
+
 export interface AuthSettings {
   enabled: boolean;
   username: string;
-  passwordHash: string;
   rememberMe: boolean;
 }
 
 export interface AuthState {
   isAuthenticated: boolean;
   username: string | null;
+  displayName?: string | null;
+  role?: string | null;
 }
 
 export interface RiskSettings {

@@ -10,6 +10,7 @@ const SHEET_RANGE = 'JOURNAL!A1:X2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
 const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:L2000';
 const CONFIG_RISK_RANGE = 'CONFIG!G3:G7';
+const USERS_RANGE = 'USERS!A1:G500';
 const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
 const DEFAULT_SERVICE_ACCOUNT_FILE = 'gen-lang-client-0658622290-67f651f4974d.json';
 const FALLBACK_INITIAL_CAPITAL = 200_000_000;
@@ -191,6 +192,22 @@ function mapAvailableAccounts(values: unknown[][]) {
   );
 }
 
+function mapUsers(values: unknown[][]) {
+  return values
+    .slice(1)
+    .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== ''))
+    .map((row, index) => ({
+      rowNumber: Number.parseInt(String(row[0] || '').trim(), 10) || index + 2,
+      username: String(row[1] || '').trim(),
+      passwordHash: String(row[2] || '').trim(),
+      role: String(row[3] || '').trim(),
+      displayName: String(row[4] || '').trim(),
+      status: String(row[5] || '').trim(),
+      lastLoginAt: String(row[6] || '').trim(),
+    }))
+    .filter((user) => user.username && user.passwordHash);
+}
+
 function mapRows(values: unknown[][], cashFlows: CashFlowEvent[] = [], initialCapital = FALLBACK_INITIAL_CAPITAL) {
   let runningEquity = initialCapital;
   let cashFlowIndex = 0;
@@ -341,17 +358,19 @@ function sheetApiPlugin(env: Record<string, string>): Plugin {
           const serviceAccount = loadServiceAccount(env);
           const token = await getAccessToken(serviceAccount);
 
-          const [journalValues, cashFlowValues, feeValues, configValues, availableAccounts] = await Promise.all([
+          const [journalValues, cashFlowValues, feeValues, configValues, userValues, availableAccounts] = await Promise.all([
             fetchSheetValues(token, sheetId, SHEET_RANGE),
             fetchSheetValues(token, sheetId, CASHFLOW_RANGE).catch(() => []),
             fetchSheetValues(token, sheetId, FEE_CHARGES_RANGE).catch(() => []),
             fetchSheetValues(token, sheetId, CONFIG_RISK_RANGE).catch(() => []),
+            fetchSheetValues(token, sheetId, USERS_RANGE).catch(() => []),
             fetchAvailableAccounts(token, sheetId),
           ]);
 
           const sheetConfig = mapSheetConfig(configValues);
           const trades = mapRows(journalValues || [], mapCashFlows(cashFlowValues), sheetConfig?.initialCapital ?? FALLBACK_INITIAL_CAPITAL);
           const feeCharges = mapFeeCharges(feeValues);
+          const users = mapUsers(userValues);
 
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
           res.end(JSON.stringify({
@@ -359,9 +378,11 @@ function sheetApiPlugin(env: Record<string, string>): Plugin {
             feeCharges,
             availableAccounts,
             sheetConfig,
+            users,
             source: 'google-service-account',
             count: trades.length,
             feeChargeCount: feeCharges.length,
+            userCount: users.length,
           }));
         } catch (error) {
           res.statusCode = 500;

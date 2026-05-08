@@ -1,4 +1,4 @@
-import type { Trade, TradeStatus, AssetType, PositionType, FeeCharge } from '../types.ts';
+import type { Trade, TradeStatus, AssetType, PositionType, FeeCharge, SheetUser } from '../types.ts';
 
 import type { SheetRuntimeConfig } from '../types.ts';
 
@@ -6,6 +6,7 @@ const SHEET_RANGE = 'JOURNAL!A1:X2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
 const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:L2000';
 const CONFIG_RISK_RANGE = 'CONFIG!G3:G7';
+const USERS_RANGE = 'USERS!A1:G500';
 const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
 const DEFAULT_SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I';
 const FALLBACK_INITIAL_CAPITAL = 200_000_000;
@@ -27,6 +28,7 @@ interface ProxyDatasetResponse {
   feeCharges?: FeeCharge[];
   availableAccounts?: string[];
   sheetConfig?: SheetRuntimeConfig | null;
+  users?: SheetUser[];
   values?: unknown[][];
   error?: { message?: string } | string;
 }
@@ -209,6 +211,21 @@ function mapAvailableAccounts(values: unknown[][]) {
         return value && value !== '*' && normalized !== 'tat ca' && normalized !== 'tai khoan';
       }),
   );
+}
+
+function mapUsers(values: unknown[][]): SheetUser[] {
+  return values.slice(1)
+    .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== ''))
+    .map((row, index) => ({
+      rowNumber: Number.parseInt(String(row[0] || '').trim(), 10) || index + 2,
+      username: String(row[1] || '').trim(),
+      passwordHash: String(row[2] || '').trim(),
+      role: String(row[3] || '').trim(),
+      displayName: String(row[4] || '').trim(),
+      status: String(row[5] || '').trim(),
+      lastLoginAt: String(row[6] || '').trim(),
+    }))
+    .filter((user) => user.username && user.passwordHash);
 }
 
 function readApiError(error: ProxyDatasetResponse['error']) {
@@ -455,5 +472,27 @@ export class GoogleSheetsService {
     const data = await response.json();
     if (!response.ok || !Array.isArray(data.values)) return null;
     return mapSheetConfig(data.values);
+  }
+
+  static async fetchUsers(sheetId: string, apiKey: string): Promise<SheetUser[]> {
+    if (!sheetId) return [];
+
+    const normalizedSheetId = sheetId.trim() || DEFAULT_SHEET_ID;
+    const normalizedApiKey = apiKey.trim();
+
+    if (!normalizedApiKey) {
+      const data = await fetchProxyDataset(normalizedSheetId);
+      if (!Array.isArray(data.users)) return [];
+      return data.users;
+    }
+
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${normalizedSheetId}/values/${encodeURIComponent(USERS_RANGE)}?key=${normalizedApiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(readApiError(data?.error) || 'KhÃ´ng thá»ƒ Ä‘á»c tab USERS tá»« Google Sheets.');
+    }
+    if (!Array.isArray(data.values)) return [];
+    return mapUsers(data.values);
   }
 }

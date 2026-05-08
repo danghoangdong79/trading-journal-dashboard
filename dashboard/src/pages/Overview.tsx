@@ -81,7 +81,7 @@ export default function Overview() {
                 </span>
               </div>
               <h1 className="max-w-3xl text-[28px] font-extrabold leading-tight text-foreground sm:text-[34px]">
-                {greeting}, {authState.username !== 'Guest' ? authState.username : 'Nhà giao dịch'}
+                {greeting}, {authState.username !== 'Guest' ? (authState.displayName || authState.username) : 'Nhà giao dịch'}
               </h1>
               <p className="mt-3 max-w-2xl text-[14px] font-medium leading-6 text-[var(--muted)]">
                 {'Không gian nhật ký của '}

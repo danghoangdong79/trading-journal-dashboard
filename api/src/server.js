@@ -7,6 +7,7 @@ const SHEET_RANGE = 'JOURNAL!A1:X2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
 const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:L2000';
 const CONFIG_RISK_RANGE = 'CONFIG!G3:G7';
+const USERS_RANGE = 'USERS!A1:G500';
 const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
 const FALLBACK_INITIAL_CAPITAL = 200_000_000;
 const PORT = Number(process.env.PORT || 8787);
@@ -162,7 +163,7 @@ function uniqueSortedStrings(values = []) {
 }
 
 function mapAvailableAccounts(values = []) {
-    return uniqueSortedStrings(
+  return uniqueSortedStrings(
         values
             .map((row) => String(row?.[0] || '').trim())
             .filter((value) => {
@@ -170,6 +171,22 @@ function mapAvailableAccounts(values = []) {
                 return value && value !== '*' && normalized !== 'tat ca' && normalized !== 'tai khoan';
             }),
     );
+}
+
+function mapUsers(values = []) {
+    return values
+        .slice(1)
+        .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== ''))
+        .map((row, index) => ({
+            rowNumber: Number.parseInt(String(row[0] || '').trim(), 10) || index + 2,
+            username: String(row[1] || '').trim(),
+            passwordHash: String(row[2] || '').trim(),
+            role: String(row[3] || '').trim(),
+            displayName: String(row[4] || '').trim(),
+            status: String(row[5] || '').trim(),
+            lastLoginAt: String(row[6] || '').trim(),
+        }))
+        .filter((user) => user.username && user.passwordHash);
 }
 
 function mapRows(values = [], cashFlows = [], initialCapital = FALLBACK_INITIAL_CAPITAL) {
@@ -294,26 +311,30 @@ app.get('/api/trades', async (req, res) => {
             scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
         });
 
-        const [journalValues, cashFlowValues, feeValues, configValues, availableAccounts] = await Promise.all([
+        const [journalValues, cashFlowValues, feeValues, configValues, userValues, availableAccounts] = await Promise.all([
             fetchSheetValues(auth, sheetId, SHEET_RANGE),
             fetchSheetValues(auth, sheetId, CASHFLOW_RANGE).catch(() => []),
             fetchSheetValues(auth, sheetId, FEE_CHARGES_RANGE).catch(() => []),
             fetchSheetValues(auth, sheetId, CONFIG_RISK_RANGE).catch(() => []),
+            fetchSheetValues(auth, sheetId, USERS_RANGE).catch(() => []),
             fetchAvailableAccounts(auth, sheetId),
         ]);
 
         const sheetConfig = mapSheetConfig(configValues);
         const trades = mapRows(journalValues, mapCashFlows(cashFlowValues), sheetConfig?.initialCapital ?? FALLBACK_INITIAL_CAPITAL);
         const feeCharges = mapFeeCharges(feeValues);
+        const users = mapUsers(userValues);
 
         const payload = {
             trades,
             feeCharges,
             availableAccounts,
             sheetConfig,
+            users,
             source: 'vps-service-account',
             count: trades.length,
             feeChargeCount: feeCharges.length,
+            userCount: users.length,
         };
 
         cache = { key: cacheKey, expiresAt: Date.now() + 60_000, payload };

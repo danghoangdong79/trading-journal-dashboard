@@ -6,26 +6,41 @@ import { cn } from '../lib/utils.ts';
 
 const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 
+function normalizeText(value: string) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isEnabledStatus(value: string) {
+  const normalized = normalizeText(value);
+  return normalized === 'bat' || normalized === 'enabled' || normalized === 'active' || normalized === 'true' || normalized === '1' || normalized === 'on';
+}
+
 export default function Login() {
-  const { authState, login, settings, updateSettings } = useApp();
+  const { authState, login, settings, isAuthLoading, authError, sheetUsers } = useApp();
   const [username, setUsername] = useState(settings.auth?.username || 'admin');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [remember, setRemember] = useState(settings.auth?.rememberMe || false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const siteName = settings.siteName || 'Dahodo.Journal';
   const customerName = settings.appName || DEFAULT_CUSTOMER_NAME;
+  const hasEnabledUsers = sheetUsers.some((user) => isEnabledStatus(user.status));
 
   if (!settings.auth.enabled || authState.isAuthenticated) {
     return <Navigate to="/overview" replace />;
   }
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isAuthLoading || !hasEnabledUsers) return;
 
-    if (remember !== settings.auth.rememberMe) {
-      updateSettings({ auth: { ...settings.auth, rememberMe: remember } });
-    }
-
-    const success = login(username, password);
+    setIsSubmitting(true);
+    const success = await login(username, password, remember).catch(() => false);
+    setIsSubmitting(false);
     if (!success) {
       setError(true);
       setPassword('');
@@ -39,8 +54,8 @@ export default function Login() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_18px_42px_-24px_rgba(255,255,255,0.85)] ring-1 ring-black/5 dark:ring-white/10">
             <img src="/logo.svg" alt="Dahodo" className="h-9 w-9 object-contain" />
           </div>
-          <h1 className="text-center text-xl font-black tracking-tight text-foreground">Dahodo.Journal</h1>
-          <p className="mt-1 text-center text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent)]">Khách hàng: {customerName}</p>
+          <h1 className="text-center text-xl font-black tracking-tight text-foreground">{siteName}</h1>
+          <p className="mt-1 text-center text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent)]">{customerName}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -68,6 +83,9 @@ export default function Login() {
               autoComplete="current-password"
             />
             {error && <div className="mt-2 flex items-center gap-1.5 text-[12px] text-[var(--loss)]"><AlertCircle className="h-3.5 w-3.5" /><span>{'Tài khoản hoặc mật khẩu không chính xác'}</span></div>}
+            {!error && authError && <div className="mt-2 flex items-center gap-1.5 text-[12px] text-[var(--loss)]"><AlertCircle className="h-3.5 w-3.5" /><span>{authError}</span></div>}
+            {!error && !authError && isAuthLoading && <div className="mt-2 text-[12px] text-[var(--muted)]">{'Đang đọc tab USERS...'}</div>}
+            {!error && !authError && !isAuthLoading && !hasEnabledUsers && <div className="mt-2 text-[12px] text-[var(--muted)]">{'USERS chưa có user hợp lệ hoặc chưa có dòng trạng thái Bật.'}</div>}
           </div>
 
           <label className="flex cursor-pointer items-center gap-2 type-caption">
@@ -75,9 +93,9 @@ export default function Login() {
             <span>{'Ghi nhớ đăng nhập'}</span>
           </label>
 
-          <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] py-3 text-[13px] font-extrabold text-white shadow-lg shadow-blue-500/20 transition-all hover:opacity-90">
+          <button type="submit" disabled={isAuthLoading || isSubmitting || !hasEnabledUsers} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] py-3 text-[13px] font-extrabold text-white shadow-lg shadow-blue-500/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
             <LogIn className="h-4 w-4" />
-            {'Đăng nhập'}
+            {isSubmitting ? 'Đang kiểm tra...' : 'Đăng nhập'}
           </button>
         </form>
       </div>

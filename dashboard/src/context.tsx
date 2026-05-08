@@ -1,7 +1,17 @@
-﻿import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { Trade, TradingStats, DashboardSettings, AuthState, AuthSettings, RiskSettings, ThemeMode, FeeCharge, MetricSettings } from './types.ts';
-import type { SheetRuntimeConfig } from './types.ts';
-import { useMemo } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type {
+  Trade,
+  TradingStats,
+  DashboardSettings,
+  AuthState,
+  AuthSettings,
+  RiskSettings,
+  ThemeMode,
+  FeeCharge,
+  MetricSettings,
+  SheetUser,
+  SheetRuntimeConfig,
+} from './types.ts';
 import { AnalyticsService } from './services/analyticsService.ts';
 import { GoogleSheetsService } from './services/googleSheetsService.ts';
 import { DEMO_TRADES } from './constants.ts';
@@ -10,30 +20,38 @@ interface AppContextType {
   trades: Trade[];
   feeCharges: FeeCharge[];
   availableAccounts: string[];
+  sheetUsers: SheetUser[];
   sheetConfig: SheetRuntimeConfig | null;
   effectiveRisk: RiskSettings;
   stats: TradingStats | null;
   settings: DashboardSettings;
   isLoading: boolean;
+  isAuthLoading: boolean;
   error: string | null;
+  authError: string | null;
   updateSettings: (newSettings: Partial<DashboardSettings>) => void;
   refreshData: () => Promise<void>;
   authState: AuthState;
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   logout: () => void;
   theme: ThemeMode;
   setTheme: (mode: ThemeMode) => void;
+}
+
+interface StoredAuthSession {
+  username: string | null;
+  rememberMe: boolean;
 }
 
 const DEFAULT_SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I';
 const BRAND_NAME = 'Dahodo.Journal';
 const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 const VALID_THEMES: ThemeMode[] = ['light', 'dark', 'system'];
+const AUTH_STORAGE_KEY = 'kh1_auth';
 
 const defaultAuthSettings: AuthSettings = {
   enabled: true,
   username: 'admin',
-  passwordHash: 'admin',
   rememberMe: false,
 };
 
@@ -80,8 +98,91 @@ function uniqueSortedStrings(values: string[]) {
   return Array.from(seen).sort((left, right) => left.localeCompare(right, 'vi'));
 }
 
+function normalizeText(value: unknown) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isEnabledUserStatus(status: string) {
+  const normalized = normalizeText(status);
+  return normalized === 'bat' || normalized === 'enabled' || normalized === 'active' || normalized === 'true' || normalized === '1' || normalized === 'on';
+}
+
 function getTradeAccounts(trades: Trade[]) {
   return uniqueSortedStrings(trades.map((trade) => trade.account));
+}
+
+function buildAuthenticatedState(user: SheetUser): AuthState {
+  return {
+    isAuthenticated: true,
+    username: user.username,
+    displayName: user.displayName || user.username,
+    role: user.role || null,
+  };
+}
+
+function clearStoredAuthSession() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  sessionStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function parseStoredAuthValue(raw: string | null, rememberMe: boolean): StoredAuthSession | null {
+  if (!raw) return null;
+  if (raw === 'true') return { username: null, rememberMe };
+
+  try {
+    const parsed = JSON.parse(raw) as { username?: unknown } | string;
+    if (typeof parsed === 'string') {
+      const username = parsed.trim();
+      return { username: username || null, rememberMe };
+    }
+    const username = typeof parsed?.username === 'string' ? parsed.username.trim() : '';
+    return { username: username || null, rememberMe };
+  } catch {
+    return null;
+  }
+}
+
+function readStoredAuthSession(): StoredAuthSession | null {
+  return parseStoredAuthValue(localStorage.getItem(AUTH_STORAGE_KEY), true)
+    || parseStoredAuthValue(sessionStorage.getItem(AUTH_STORAGE_KEY), false);
+}
+
+function persistStoredAuthSession(username: string, rememberMe: boolean) {
+  const payload = JSON.stringify({ username });
+  if (rememberMe) {
+    localStorage.setItem(AUTH_STORAGE_KEY, payload);
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    return;
+  }
+
+  sessionStorage.setItem(AUTH_STORAGE_KEY, payload);
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function findEnabledUser(users: SheetUser[], username: string) {
+  const normalizedUsername = normalizeText(username);
+  if (!normalizedUsername) return null;
+  return users.find((user) => normalizeText(user.username) === normalizedUsername && isEnabledUserStatus(user.status)) || null;
+}
+
+async function sha256Hex(value: string) {
+  const encoded = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((item) => item.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function passwordMatches(plainText: string, storedHash: string) {
+  const normalizedStoredHash = storedHash.trim().toLowerCase();
+  if (/^[a-f0-9]{64}$/.test(normalizedStoredHash)) {
+    return (await sha256Hex(plainText)).toLowerCase() === normalizedStoredHash;
+  }
+  return plainText === storedHash;
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -103,7 +204,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!merged.siteName || merged.siteName === 'KhangHang1') merged.siteName = BRAND_NAME;
       if (!merged.appName || merged.appName === 'KhangHang1') merged.appName = DEFAULT_CUSTOMER_NAME;
       if (merged.auth.username === 'KhangHang1' || !merged.auth.username) merged.auth.username = defaultAuthSettings.username;
-      if (merged.auth.passwordHash === 'admin123' || !merged.auth.passwordHash) merged.auth.passwordHash = defaultAuthSettings.passwordHash;
       if (!merged.apiKey && merged.sheetId === DEFAULT_SHEET_ID) merged.isDemoMode = false;
 
       return merged;
@@ -115,22 +215,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [feeCharges, setFeeCharges] = useState<FeeCharge[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
+  const [sheetUsers, setSheetUsers] = useState<SheetUser[]>([]);
   const [sheetConfig, setSheetConfig] = useState<SheetRuntimeConfig | null>(null);
   const [stats, setStats] = useState<TradingStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [hasLoadedAuthUsers, setHasLoadedAuthUsers] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     const savedTheme = localStorage.getItem('kh1_theme') as ThemeMode | null;
     return savedTheme && VALID_THEMES.includes(savedTheme) ? savedTheme : 'system';
   });
   const [authState, setAuthState] = useState<AuthState>(() => {
-    if (!defaultSettings.auth.enabled) return { isAuthenticated: true, username: 'Guest' };
-    const localAuth = localStorage.getItem('kh1_auth');
-    const sessionAuth = sessionStorage.getItem('kh1_auth');
-    if (localAuth === 'true' || sessionAuth === 'true') {
-      return { isAuthenticated: true, username: defaultAuthSettings.username };
+    if (!defaultSettings.auth.enabled) {
+      return { isAuthenticated: true, username: 'Guest', displayName: 'Guest', role: null };
     }
-    return { isAuthenticated: false, username: null };
+    return { isAuthenticated: false, username: null, displayName: null, role: null };
   });
 
   const effectiveRisk = useMemo<RiskSettings>(() => {
@@ -170,24 +271,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  const login = (username: string, password: string) => {
-    const normalizedUsername = username.trim();
-    if (normalizedUsername !== settings.auth.username || password !== settings.auth.passwordHash) return false;
-    setAuthState({ isAuthenticated: true, username: settings.auth.username });
-    if (settings.auth.rememberMe) {
-      localStorage.setItem('kh1_auth', 'true');
-      sessionStorage.removeItem('kh1_auth');
-    } else {
-      sessionStorage.setItem('kh1_auth', 'true');
-      localStorage.removeItem('kh1_auth');
-    }
+  const login = async (username: string, password: string, rememberMe = settings.auth.rememberMe) => {
+    const user = findEnabledUser(sheetUsers, username);
+    if (!user || !(await passwordMatches(password, user.passwordHash))) return false;
+
+    persistStoredAuthSession(user.username, rememberMe);
+    setAuthState(buildAuthenticatedState(user));
+    updateSettings({ auth: { ...settings.auth, username: user.username, rememberMe } });
     return true;
   };
 
   const logout = () => {
-    setAuthState({ isAuthenticated: false, username: null });
-    localStorage.removeItem('kh1_auth');
-    sessionStorage.removeItem('kh1_auth');
+    setAuthState({ isAuthenticated: false, username: null, displayName: null, role: null });
+    clearStoredAuthSession();
   };
 
   const updateSettings = (newSettings: Partial<DashboardSettings>) => {
@@ -216,11 +312,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('kh1_settings', JSON.stringify(updated));
 
     if (!updated.auth.enabled) {
-      setAuthState({ isAuthenticated: true, username: 'Guest' });
-      localStorage.removeItem('kh1_auth');
-      sessionStorage.removeItem('kh1_auth');
-    } else if (!localStorage.getItem('kh1_auth') && !sessionStorage.getItem('kh1_auth')) {
-      setAuthState({ isAuthenticated: false, username: null });
+      clearStoredAuthSession();
+      setAuthState({ isAuthenticated: true, username: 'Guest', displayName: 'Guest', role: null });
+    } else if (!readStoredAuthSession()) {
+      setAuthState({ isAuthenticated: false, username: null, displayName: null, role: null });
     }
   };
 
@@ -269,14 +364,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (settings.auth.enabled) {
-      const localAuth = localStorage.getItem('kh1_auth');
-      const sessionAuth = sessionStorage.getItem('kh1_auth');
-      if (localAuth === 'true' || sessionAuth === 'true') {
-        setAuthState({ isAuthenticated: true, username: settings.auth.username });
+    let cancelled = false;
+
+    const loadAuthUsers = async () => {
+      if (!settings.sheetId.trim()) {
+        if (!cancelled) {
+          setSheetUsers([]);
+          setAuthError('Cần Sheet ID để đọc tab USERS.');
+          setHasLoadedAuthUsers(true);
+          setIsAuthLoading(false);
+        }
+        return;
       }
+
+      setIsAuthLoading(true);
+      setAuthError(null);
+
+      try {
+        const nextUsers = await GoogleSheetsService.fetchUsers(settings.sheetId, settings.apiKey);
+        if (cancelled) return;
+
+        setSheetUsers(nextUsers);
+        setAuthError(nextUsers.length > 0 ? null : 'Tab USERS chưa có dòng người dùng hợp lệ.');
+      } catch (caughtError) {
+        if (cancelled) return;
+        const message = caughtError instanceof Error ? caughtError.message : 'Không thể đọc tab USERS.';
+        setSheetUsers([]);
+        setAuthError(message);
+      } finally {
+        if (!cancelled) {
+          setHasLoadedAuthUsers(true);
+          setIsAuthLoading(false);
+        }
+      }
+    };
+
+    void loadAuthUsers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.sheetId, settings.apiKey]);
+
+  useEffect(() => {
+    if (!settings.auth.enabled) {
+      setAuthState({ isAuthenticated: true, username: 'Guest', displayName: 'Guest', role: null });
+      return;
     }
-  }, [settings.auth.enabled, settings.auth.username]);
+
+    if (!hasLoadedAuthUsers) return;
+
+    const storedSession = readStoredAuthSession();
+    if (!storedSession) {
+      setAuthState({ isAuthenticated: false, username: null, displayName: null, role: null });
+      return;
+    }
+
+    const fallbackUsername = storedSession.username || settings.auth.username;
+    const matchedUser = findEnabledUser(sheetUsers, fallbackUsername);
+
+    if (!matchedUser) {
+      clearStoredAuthSession();
+      setAuthState({ isAuthenticated: false, username: null, displayName: null, role: null });
+      return;
+    }
+
+    persistStoredAuthSession(matchedUser.username, storedSession.rememberMe);
+    setAuthState(buildAuthenticatedState(matchedUser));
+  }, [hasLoadedAuthUsers, settings.auth.enabled, settings.auth.username, sheetUsers]);
 
   useEffect(() => {
     if (settings.isDemoMode || authState.isAuthenticated) {
@@ -294,12 +449,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         trades,
         feeCharges,
         availableAccounts,
+        sheetUsers,
         sheetConfig,
         effectiveRisk,
         stats,
         settings,
         isLoading,
+        isAuthLoading,
         error,
+        authError,
         updateSettings,
         refreshData,
         authState,
@@ -321,10 +479,3 @@ export function useApp() {
   }
   return context;
 }
-
-
-
-
-
-
-
