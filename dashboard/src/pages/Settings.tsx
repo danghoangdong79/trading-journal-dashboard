@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
-import { AlertCircle, BarChart3, CheckCircle, ChevronDown, Database, ExternalLink, Link2, LogOut, Monitor, Moon, Save, Sun, User } from 'lucide-react';
+import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import { AlertCircle, BarChart3, CheckCircle, ChevronDown, Copy, Database, ExternalLink, KeyRound, Link2, LogOut, Monitor, Moon, Save, Sun, User, UserPlus, Users } from 'lucide-react';
 import type { MetricKey } from '../types.ts';
 import { useApp } from '../context.tsx';
 import { Card } from '../components/ui/Card.tsx';
@@ -18,6 +18,14 @@ function normalizeText(value: string) {
 function isEnabledStatus(value: string) {
   const normalized = normalizeText(value);
   return normalized === 'bat' || normalized === 'enabled' || normalized === 'active' || normalized === 'true' || normalized === '1' || normalized === 'on';
+}
+
+async function sha256Hex(value: string) {
+  const encoded = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((item) => item.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 function SettingsPanel({ title, subtitle, children, defaultOpen = false }: { title: string; subtitle?: string; children: ReactNode; defaultOpen?: boolean }) {
@@ -63,8 +71,23 @@ export default function Settings() {
   const [riskSaveSuccess, setRiskSaveSuccess] = useState(false);
   const [metricDraft, setMetricDraft] = useState(settings.metrics);
   const [metricSaveSuccess, setMetricSaveSuccess] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState('');
+  const [passwordPlain, setPasswordPlain] = useState('');
+  const [passwordHash, setPasswordHash] = useState('');
+  const [passwordHelperMessage, setPasswordHelperMessage] = useState('');
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState('Thành viên');
+  const [newUserDisplayName, setNewUserDisplayName] = useState('');
+  const [newUserStatus, setNewUserStatus] = useState('Bật');
+  const [newUserHash, setNewUserHash] = useState('');
+  const [newUserRow, setNewUserRow] = useState('');
+  const [newUserHelperMessage, setNewUserHelperMessage] = useState('');
   const isSheetRiskActive = Boolean(sheetConfig);
   const enabledUsers = sheetUsers.filter((user) => isEnabledStatus(user.status));
+  const nextUserStt = sheetUsers.reduce((max, user) => (
+    Number.isFinite(user.rowNumber) ? Math.max(max, user.rowNumber) : max
+  ), 0) + 1;
 
   useEffect(() => {
     setRiskDraft(effectiveRisk);
@@ -73,6 +96,16 @@ export default function Settings() {
   useEffect(() => {
     setUsername(settings.auth?.username || 'admin');
   }, [settings.auth?.username]);
+
+  useEffect(() => {
+    if (passwordTarget) return;
+    const preferredUser = enabledUsers.find((user) => normalizeText(user.username) === normalizeText(authState.username || ''));
+    if (preferredUser) {
+      setPasswordTarget(preferredUser.username);
+      return;
+    }
+    if (enabledUsers[0]) setPasswordTarget(enabledUsers[0].username);
+  }, [authState.username, enabledUsers, passwordTarget]);
 
   const handleSaveSheet = () => {
     const nextSheetId = localSheetId.trim();
@@ -110,6 +143,68 @@ export default function Settings() {
   };
 
   const inputClass = "w-full rounded-md border border-[var(--card-border)] bg-[var(--input-bg)] px-3 py-2 text-[12.5px] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20";
+  const helperButtonClass = "inline-flex items-center justify-center gap-2 rounded-md border border-[var(--card-border)] px-3 py-2 text-[12px] font-bold text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground";
+
+  const flashMessage = (setter: Dispatch<SetStateAction<string>>, message: string) => {
+    setter(message);
+    window.setTimeout(() => setter(''), 2500);
+  };
+
+  const copyText = async (value: string, setter: Dispatch<SetStateAction<string>>, successMessage: string) => {
+    if (!value.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+      flashMessage(setter, successMessage);
+    } catch {
+      flashMessage(setter, 'Trình duyệt chưa copy được. Hãy copy thủ công.');
+    }
+  };
+
+  const handleGeneratePasswordHash = async () => {
+    if (!passwordTarget.trim()) {
+      flashMessage(setPasswordHelperMessage, 'Chọn user cần đổi mật khẩu trước.');
+      return;
+    }
+    if (!passwordPlain.trim()) {
+      flashMessage(setPasswordHelperMessage, 'Nhập mật khẩu mới trước khi sinh hash.');
+      return;
+    }
+
+    setPasswordHash(await sha256Hex(passwordPlain));
+    flashMessage(setPasswordHelperMessage, `Đã sinh hash cho ${passwordTarget}.`);
+  };
+
+  const handleBuildUserRow = async () => {
+    const normalizedNewUsername = normalizeText(newUserName);
+    if (!normalizedNewUsername) {
+      flashMessage(setNewUserHelperMessage, 'Nhập tên đăng nhập cho thành viên mới.');
+      return;
+    }
+    if (!newUserPassword.trim()) {
+      flashMessage(setNewUserHelperMessage, 'Nhập mật khẩu trước khi tạo dòng USERS.');
+      return;
+    }
+    if (sheetUsers.some((user) => normalizeText(user.username) === normalizedNewUsername)) {
+      flashMessage(setNewUserHelperMessage, 'Username này đã tồn tại trong USERS.');
+      return;
+    }
+
+    const hash = await sha256Hex(newUserPassword);
+    const row = [
+      String(nextUserStt),
+      newUserName.trim(),
+      hash,
+      newUserRole.trim() || 'Thành viên',
+      newUserDisplayName.trim() || newUserName.trim(),
+      newUserStatus,
+      '',
+    ].join('\t');
+
+    setNewUserHash(hash);
+    setNewUserRow(row);
+    flashMessage(setNewUserHelperMessage, 'Đã tạo sẵn dòng USERS để copy.');
+  };
 
   return (
     <div className="mx-auto max-w-[760px] space-y-3">
@@ -222,6 +317,145 @@ export default function Settings() {
           {!authError && authEnabled && (
             <div className="rounded-md border border-[var(--accent)]/10 bg-[var(--accent-soft)] p-3 text-[12px] leading-5 text-[var(--muted)]">
               Runtime đang đọc trực tiếp <span className="font-mono text-foreground">USERS!A:G</span>. Username local chỉ để điền sẵn ô login; xác thực thật dùng <span className="font-semibold text-foreground">Tên đăng nhập + Mật khẩu mã hóa + Trạng thái</span> trong sheet.
+            </div>
+          )}
+
+          {!authError && (
+            <div className="space-y-3 border-t border-[var(--card-border)] pt-3">
+              <div className="flex items-center gap-2 text-[13px] font-bold text-foreground">
+                <Users size={15} className="text-[var(--accent)]" />
+                Tiện ích USERS
+              </div>
+
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {sheetUsers.map((user) => (
+                  <div key={user.username} className="rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-bold text-foreground">{user.displayName || user.username}</p>
+                        <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">{user.username}</p>
+                      </div>
+                      <span className={cn('rounded-full px-2 py-1 text-[10px] font-extrabold uppercase tracking-[0.04em]', isEnabledStatus(user.status) ? 'bg-[var(--win)]/12 text-[var(--win)]' : 'bg-[var(--loss)]/10 text-[var(--loss)]')}>
+                        {user.status || 'Không rõ'}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-[11px] text-[var(--muted)]">
+                      Vai trò: <span className="font-semibold text-foreground">{user.role || 'Chưa ghi'}</span>
+                    </div>
+                  </div>
+                ))}
+                {sheetUsers.length === 0 && (
+                  <div className="rounded-md border border-dashed border-[var(--card-border)] p-3 text-[12px] text-[var(--muted)] sm:col-span-2">
+                    Chưa có user hợp lệ để hiển thị từ tab USERS.
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                <div className="rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+                  <div className="flex items-center gap-2 text-[13px] font-bold text-foreground">
+                    <KeyRound size={15} className="text-[var(--accent)]" />
+                    Đổi mật khẩu
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="type-title text-[10px]">User cần đổi</label>
+                      <select value={passwordTarget} onChange={(event) => setPasswordTarget(event.target.value)} className={inputClass}>
+                        <option value="">Chọn user</option>
+                        {sheetUsers.map((user) => (
+                          <option key={user.username} value={user.username}>{user.username}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="type-title text-[10px]">Mật khẩu mới</label>
+                      <input type="password" value={passwordPlain} onChange={(event) => setPasswordPlain(event.target.value)} placeholder="Nhập mật khẩu mới..." className={inputClass} />
+                    </div>
+                    <button onClick={() => void handleGeneratePasswordHash()} className="flex w-full items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2 text-[12.5px] font-bold text-background transition-all hover:opacity-90">
+                      <KeyRound size={15} />
+                      Sinh hash mật khẩu
+                    </button>
+                    <div className="space-y-1.5">
+                      <label className="type-title text-[10px]">Hash để dán vào USERS cột C</label>
+                      <textarea value={passwordHash} readOnly rows={3} className={`${inputClass} resize-none font-mono text-[11px]`} placeholder="Hash sẽ hiện ở đây sau khi sinh." />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => void copyText(passwordHash, setPasswordHelperMessage, 'Đã copy hash mật khẩu.')} disabled={!passwordHash} className={`${helperButtonClass} flex-1 disabled:cursor-not-allowed disabled:opacity-50`}>
+                        <Copy size={14} />
+                        Copy hash
+                      </button>
+                      <a href={settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit#gid=780636680` : '/settings'} target={settings.sheetId ? '_blank' : '_self'} rel="noreferrer" className={helperButtonClass}>
+                        <ExternalLink size={14} />
+                        Mở USERS
+                      </a>
+                    </div>
+                    <div className="rounded-md bg-[var(--card-elevated)] p-2.5 text-[11px] leading-5 text-[var(--muted)]">
+                      Sau khi copy, mở tab <span className="font-mono text-foreground">USERS</span> và thay giá trị ở cột <span className="font-mono text-foreground">C</span> của user <span className="font-semibold text-foreground">{passwordTarget || 'đã chọn'}</span>.
+                    </div>
+                    {passwordHelperMessage && <p className="text-[11px] font-semibold text-[var(--accent)]">{passwordHelperMessage}</p>}
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+                  <div className="flex items-center gap-2 text-[13px] font-bold text-foreground">
+                    <UserPlus size={15} className="text-[var(--accent)]" />
+                    Thêm thành viên mới
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <label className="type-title text-[10px]">Tên đăng nhập</label>
+                        <input type="text" value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Ví dụ: trader01" className={inputClass} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="type-title text-[10px]">Tên hiển thị</label>
+                        <input type="text" value={newUserDisplayName} onChange={(event) => setNewUserDisplayName(event.target.value)} placeholder="Ví dụ: Trader 01" className={inputClass} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="type-title text-[10px]">Vai trò</label>
+                        <input type="text" value={newUserRole} onChange={(event) => setNewUserRole(event.target.value)} placeholder="Ví dụ: Thành viên" className={inputClass} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="type-title text-[10px]">Trạng thái</label>
+                        <select value={newUserStatus} onChange={(event) => setNewUserStatus(event.target.value)} className={inputClass}>
+                          <option value="Bật">Bật</option>
+                          <option value="Tắt">Tắt</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="type-title text-[10px]">Mật khẩu khởi tạo</label>
+                      <input type="password" value={newUserPassword} onChange={(event) => setNewUserPassword(event.target.value)} placeholder="Nhập mật khẩu tạm thời..." className={inputClass} />
+                    </div>
+                    <button onClick={() => void handleBuildUserRow()} className="flex w-full items-center justify-center gap-2 rounded-md bg-foreground px-4 py-2 text-[12.5px] font-bold text-background transition-all hover:opacity-90">
+                      <UserPlus size={15} />
+                      Tạo dòng USERS
+                    </button>
+                    <div className="space-y-1.5">
+                      <label className="type-title text-[10px]">Hash mật khẩu mới</label>
+                      <textarea value={newUserHash} readOnly rows={2} className={`${inputClass} resize-none font-mono text-[11px]`} placeholder="Hash cho thành viên mới sẽ hiện ở đây." />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="type-title text-[10px]">Dòng để dán vào USERS</label>
+                      <textarea value={newUserRow} readOnly rows={4} className={`${inputClass} resize-none font-mono text-[11px]`} placeholder="Hệ thống sẽ tạo sẵn 1 dòng TSV theo thứ tự STT, Username, Hash, Vai trò, Tên hiển thị, Trạng thái, Lần đăng nhập cuối." />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => void copyText(newUserRow, setNewUserHelperMessage, 'Đã copy dòng USERS mới.')} disabled={!newUserRow} className={`${helperButtonClass} flex-1 disabled:cursor-not-allowed disabled:opacity-50`}>
+                        <Copy size={14} />
+                        Copy dòng
+                      </button>
+                      <button onClick={() => void copyText(newUserHash, setNewUserHelperMessage, 'Đã copy hash user mới.')} disabled={!newUserHash} className={`${helperButtonClass} flex-1 disabled:cursor-not-allowed disabled:opacity-50`}>
+                        <Copy size={14} />
+                        Copy hash
+                      </button>
+                    </div>
+                    <div className="rounded-md bg-[var(--card-elevated)] p-2.5 text-[11px] leading-5 text-[var(--muted)]">
+                      Dòng mới sẽ bắt đầu với STT <span className="font-mono text-foreground">{nextUserStt}</span>. Mở tab <span className="font-mono text-foreground">USERS</span>, paste vào dòng trống kế tiếp rồi bấm <span className="font-semibold text-foreground">Kiểm tra</span> để app đọc lại.
+                    </div>
+                    {newUserHelperMessage && <p className="text-[11px] font-semibold text-[var(--accent)]">{newUserHelperMessage}</p>}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
