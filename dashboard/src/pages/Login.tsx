@@ -1,9 +1,10 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { AlertCircle, LogIn } from 'lucide-react';
+import { AlertCircle, LogIn, RefreshCw, RotateCcw } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { cn } from '../lib/utils.ts';
 
+const DEFAULT_SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I';
 const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 
 function normalizeText(value: string) {
@@ -20,15 +21,17 @@ function isEnabledStatus(value: string) {
 }
 
 export default function Login() {
-  const { authState, login, settings, isAuthLoading, authError, sheetUsers } = useApp();
+  const { authState, login, settings, updateSettings, isAuthLoading, authError, refreshAuthUsers, sheetUsers } = useApp();
   const [username, setUsername] = useState(settings.auth?.username || 'admin');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [remember, setRemember] = useState(settings.auth?.rememberMe || false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshingUsers, setIsRefreshingUsers] = useState(false);
   const siteName = settings.siteName || 'Dahodo.Journal';
   const customerName = settings.appName || DEFAULT_CUSTOMER_NAME;
   const hasEnabledUsers = sheetUsers.some((user) => isEnabledStatus(user.status));
+  const hasAuthIssue = Boolean(authError) || (!isAuthLoading && !hasEnabledUsers);
 
   if (!settings.auth.enabled || authState.isAuthenticated) {
     return <Navigate to="/overview" replace />;
@@ -45,6 +48,23 @@ export default function Login() {
       setError(true);
       setPassword('');
     }
+  };
+
+  const handleRefreshUsers = async () => {
+    setIsRefreshingUsers(true);
+    await refreshAuthUsers(true).catch(() => undefined);
+    setIsRefreshingUsers(false);
+  };
+
+  const handleResetConnection = () => {
+    updateSettings({
+      sheetId: DEFAULT_SHEET_ID,
+      apiKey: '',
+      isDemoMode: false,
+      auth: { ...settings.auth, username: 'admin' },
+    });
+    setError(false);
+    setPassword('');
   };
 
   return (
@@ -92,6 +112,25 @@ export default function Login() {
             <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="rounded border-[var(--card-border)] bg-background text-[var(--accent)] focus:ring-[var(--accent)]" />
             <span>{'Ghi nhớ đăng nhập'}</span>
           </label>
+
+          {hasAuthIssue && (
+            <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--surface-soft)] p-4 text-[12px] text-[var(--muted)]">
+              <div className="font-semibold text-foreground">{'Chẩn đoán kết nối USERS'}</div>
+              <div className="mt-2 text-[11px]">{'Sheet ID app đang dùng:'}</div>
+              <div className="mt-1 break-all font-mono text-[11px] text-foreground">{settings.sheetId || '(chưa có Sheet ID)'}</div>
+              <div className="mt-2">{`USERS đọc được: ${sheetUsers.length} user`}</div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <button type="button" onClick={() => void handleRefreshUsers()} disabled={isRefreshingUsers} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--card-border)] px-3 py-2 font-bold text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60">
+                  <RefreshCw className={cn('h-4 w-4', isRefreshingUsers && 'animate-spin')} />
+                  {isRefreshingUsers ? 'Đang đọc lại...' : 'Đọc lại USERS'}
+                </button>
+                <button type="button" onClick={handleResetConnection} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--card-border)] px-3 py-2 font-bold text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground">
+                  <RotateCcw className="h-4 w-4" />
+                  {'Dùng sheet mặc định'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <button type="submit" disabled={isAuthLoading || isSubmitting || !hasEnabledUsers} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] py-3 text-[13px] font-extrabold text-white shadow-lg shadow-blue-500/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
             <LogIn className="h-4 w-4" />

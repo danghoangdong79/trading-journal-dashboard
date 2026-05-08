@@ -31,6 +31,7 @@ interface AppContextType {
   authError: string | null;
   updateSettings: (newSettings: Partial<DashboardSettings>) => void;
   refreshData: () => Promise<void>;
+  refreshAuthUsers: (forceRefresh?: boolean) => Promise<void>;
   authState: AuthState;
   login: (username: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   logout: () => void;
@@ -197,7 +198,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...parsed,
         auth: { ...defaultAuthSettings, ...(parsed.auth || {}) },
         risk: { ...defaultRiskSettings, ...(parsed.risk || {}) },
-        metrics: { ...defaultMetricSettings, ...(parsed.metrics || {}), visible: { ...defaultMetricSettings.visible, ...(parsed.metrics?.visible || {}) } },
+        metrics: {
+          ...defaultMetricSettings,
+          ...(parsed.metrics || {}),
+          visible: { ...defaultMetricSettings.visible, ...(parsed.metrics?.visible || {}) },
+        },
       };
 
       if (!merged.sheetId) merged.sheetId = DEFAULT_SHEET_ID;
@@ -363,47 +368,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshAuthUsers = async (forceRefresh = false) => {
+    if (!settings.sheetId.trim()) {
+      setSheetUsers([]);
+      setAuthError('Cần Sheet ID để đọc tab USERS.');
+      setHasLoadedAuthUsers(true);
+      setIsAuthLoading(false);
+      return;
+    }
+
+    setIsAuthLoading(true);
+    setAuthError(null);
+
+    try {
+      const nextUsers = await GoogleSheetsService.fetchUsers(settings.sheetId, settings.apiKey, { forceRefresh });
+      setSheetUsers(nextUsers);
+      setAuthError(nextUsers.length > 0 ? null : 'Tab USERS chưa có dòng người dùng hợp lệ.');
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : 'Không thể đọc tab USERS.';
+      setSheetUsers([]);
+      setAuthError(message);
+    } finally {
+      setHasLoadedAuthUsers(true);
+      setIsAuthLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadAuthUsers = async () => {
-      if (!settings.sheetId.trim()) {
-        if (!cancelled) {
-          setSheetUsers([]);
-          setAuthError('Cần Sheet ID để đọc tab USERS.');
-          setHasLoadedAuthUsers(true);
-          setIsAuthLoading(false);
-        }
-        return;
-      }
-
-      setIsAuthLoading(true);
-      setAuthError(null);
-
-      try {
-        const nextUsers = await GoogleSheetsService.fetchUsers(settings.sheetId, settings.apiKey);
-        if (cancelled) return;
-
-        setSheetUsers(nextUsers);
-        setAuthError(nextUsers.length > 0 ? null : 'Tab USERS chưa có dòng người dùng hợp lệ.');
-      } catch (caughtError) {
-        if (cancelled) return;
-        const message = caughtError instanceof Error ? caughtError.message : 'Không thể đọc tab USERS.';
-        setSheetUsers([]);
-        setAuthError(message);
-      } finally {
-        if (!cancelled) {
-          setHasLoadedAuthUsers(true);
-          setIsAuthLoading(false);
-        }
-      }
-    };
-
-    void loadAuthUsers();
-
-    return () => {
-      cancelled = true;
-    };
+    void refreshAuthUsers();
   }, [settings.sheetId, settings.apiKey]);
 
   useEffect(() => {
@@ -460,6 +452,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         authError,
         updateSettings,
         refreshData,
+        refreshAuthUsers,
         authState,
         login,
         logout,

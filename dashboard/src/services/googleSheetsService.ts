@@ -33,6 +33,10 @@ interface ProxyDatasetResponse {
   error?: { message?: string } | string;
 }
 
+interface FetchOptions {
+  forceRefresh?: boolean;
+}
+
 let proxyDatasetCache: {
   key: string;
   expiresAt: number;
@@ -234,15 +238,20 @@ function readApiError(error: ProxyDatasetResponse['error']) {
   return error.message || '';
 }
 
-async function fetchProxyDataset(sheetId: string) {
+async function fetchProxyDataset(sheetId: string, options: FetchOptions = {}) {
   const apiBaseUrl = getApiBaseUrl();
   const cacheKey = sheetId.trim();
+  const forceRefresh = Boolean(options.forceRefresh);
 
-  if (proxyDatasetCache.key === cacheKey && proxyDatasetCache.data && proxyDatasetCache.expiresAt > Date.now()) {
+  if (forceRefresh && proxyDatasetCache.key === cacheKey) {
+    proxyDatasetCache = { key: '', expiresAt: 0, data: null, promise: null };
+  }
+
+  if (!forceRefresh && proxyDatasetCache.key === cacheKey && proxyDatasetCache.data && proxyDatasetCache.expiresAt > Date.now()) {
     return proxyDatasetCache.data;
   }
 
-  if (proxyDatasetCache.key === cacheKey && proxyDatasetCache.promise) {
+  if (!forceRefresh && proxyDatasetCache.key === cacheKey && proxyDatasetCache.promise) {
     return proxyDatasetCache.promise;
   }
 
@@ -474,14 +483,14 @@ export class GoogleSheetsService {
     return mapSheetConfig(data.values);
   }
 
-  static async fetchUsers(sheetId: string, apiKey: string): Promise<SheetUser[]> {
+  static async fetchUsers(sheetId: string, apiKey: string, options: FetchOptions = {}): Promise<SheetUser[]> {
     if (!sheetId) return [];
 
     const normalizedSheetId = sheetId.trim() || DEFAULT_SHEET_ID;
     const normalizedApiKey = apiKey.trim();
 
     if (!normalizedApiKey) {
-      const data = await fetchProxyDataset(normalizedSheetId);
+      const data = await fetchProxyDataset(normalizedSheetId, options);
       if (!Array.isArray(data.users)) return [];
       return data.users;
     }
