@@ -1,90 +1,65 @@
 import { useMemo, useState } from 'react';
-import { Activity, ExternalLink, Search, Target, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { Activity, ExternalLink, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card, KpiCard } from '../components/ui/Card.tsx';
 import { cn, formatCurrency, formatPercent, buildJournalRowUrl } from '../lib/utils.ts';
 import { STATUS_CONFIG } from '../constants.ts';
 import { AnalyticsService } from '../services/analyticsService.ts';
+import { TradeFilterBar } from '../components/filters/TradeFilterBar.tsx';
+import { ALL_FILTER, filterTrades, getTradeFilterOptions, type TradeFilters, type TradeSelectFilterKey } from '../lib/tradeFilters.ts';
+
+const DEFAULT_JOURNAL_FILTERS: TradeFilters = {
+  search: '',
+  account: ALL_FILTER,
+  assetType: ALL_FILTER,
+  symbol: ALL_FILTER,
+  position: ALL_FILTER,
+  orderType: ALL_FILTER,
+  status: ALL_FILTER,
+  strategy: ALL_FILTER,
+  sector: ALL_FILTER,
+  mood: ALL_FILTER,
+  pnlBucket: ALL_FILTER,
+  fromDate: '',
+  toDate: '',
+};
 
 export default function Journal() {
-  const { settings, trades, isLoading } = useApp();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterAsset, setFilterAsset] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [filterStrategy, setFilterStrategy] = useState('All');
+  const { settings, trades, availableAccounts, isLoading } = useApp();
+  const [filters, setFilters] = useState<TradeFilters>(DEFAULT_JOURNAL_FILTERS);
 
-  const strategies = useMemo(
-    () => Array.from(new Set<string>(trades.map((trade) => trade.strategy).filter((strategy): strategy is string => Boolean(strategy)))).sort((left, right) => left.localeCompare(right, 'vi')),
-    [trades],
-  );
-
-  const filteredAsc = useMemo(
-    () =>
-      trades.filter((trade) => {
-        const keyword = searchTerm.trim().toLowerCase();
-        const matchesSearch =
-          !keyword ||
-          trade.symbol.toLowerCase().includes(keyword) ||
-          trade.strategy.toLowerCase().includes(keyword) ||
-          trade.sector.toLowerCase().includes(keyword);
-        const matchesAsset = filterAsset === 'All' || trade.assetType === filterAsset;
-        const matchesStatus = filterStatus === 'All' || trade.status === filterStatus;
-        const matchesStrategy = filterStrategy === 'All' || trade.strategy === filterStrategy;
-        return matchesSearch && matchesAsset && matchesStatus && matchesStrategy;
-      }),
-    [filterAsset, filterStatus, filterStrategy, searchTerm, trades],
-  );
+  const filterOptions = useMemo(() => getTradeFilterOptions(trades, availableAccounts), [availableAccounts, trades]);
+  const journalFilterFields = useMemo<TradeSelectFilterKey[]>(() => {
+    const fields: TradeSelectFilterKey[] = [];
+    if (filterOptions.accounts.length > 1) fields.push('account');
+    if (filterOptions.assetTypes.length > 1) fields.push('assetType');
+    if (filterOptions.statuses.length > 1) fields.push('status');
+    if (filterOptions.strategies.length > 1) fields.push('strategy');
+    return fields;
+  }, [filterOptions.accounts.length, filterOptions.assetTypes.length, filterOptions.statuses.length, filterOptions.strategies.length]);
+  const filteredAsc = useMemo(() => filterTrades(trades, filters), [filters, trades]);
 
   const filteredTrades = useMemo(() => filteredAsc.slice().reverse(), [filteredAsc]);
   const summary = useMemo(() => AnalyticsService.summarizeTrades(filteredAsc), [filteredAsc]);
   const topSymbol = useMemo(() => AnalyticsService.groupPnL(filteredAsc, (trade) => trade.symbol)[0], [filteredAsc]);
   const getSheetRowUrl = (rowNumber: number) => buildJournalRowUrl(settings.sheetId, rowNumber, settings.journalGid);
+  const updateFilters = (patch: Partial<TradeFilters>) => setFilters((current) => ({ ...current, ...patch }));
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-5">
-      {/* Search & Filters */}
-      <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center">
-        <div className="relative w-full flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={15} />
-          <input
-            type="text"
-            placeholder="Tìm mã, chiến lược hoặc nhóm ngành..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] py-2 pl-9 pr-4 text-[13px] transition-all focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/40 placeholder:text-[var(--muted)]"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <select value={filterAsset} onChange={(event) => setFilterAsset(event.target.value)} className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-[12px] focus:outline-none">
-            <option value="All">Tất cả tài sản</option>
-            <option value="Phái sinh">Phái sinh</option>
-            <option value="Cổ phiếu">Cổ phiếu</option>
-          </select>
-          <select value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)} className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-[12px] focus:outline-none">
-            <option value="All">Tất cả trạng thái</option>
-            <option value="Thắng">Thắng</option>
-            <option value="Thua">Thua</option>
-            <option value="Hòa">Hòa</option>
-            <option value="Đang mở">Đang mở</option>
-          </select>
-          <select value={filterStrategy} onChange={(event) => setFilterStrategy(event.target.value)} className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2 text-[12px] focus:outline-none">
-            <option value="All">Tất cả chiến lược</option>
-            {strategies.map((strategy) => <option key={strategy} value={strategy}>{strategy}</option>)}
-          </select>
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setFilterAsset('All');
-              setFilterStatus('All');
-              setFilterStrategy('All');
-            }}
-            className="flex items-center justify-center rounded-lg border border-[var(--card-border)] p-2 text-[var(--muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-foreground"
-            title="Xóa bộ lọc"
-          >
-            <X size={15} />
-          </button>
-        </div>
-      </div>
+      <TradeFilterBar
+        filters={filters}
+        options={filterOptions}
+        fields={journalFilterFields}
+        onChange={updateFilters}
+        onReset={() => setFilters(DEFAULT_JOURNAL_FILTERS)}
+        showSearch
+        showDateRange
+        searchPlaceholder="Tìm mã, chiến lược, nhóm ngành hoặc ghi chú..."
+        resultCount={filteredAsc.length}
+        totalCount={trades.length}
+        title="Bộ lọc nhật ký"
+      />
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">

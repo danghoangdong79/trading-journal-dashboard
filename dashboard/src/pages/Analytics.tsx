@@ -1,23 +1,50 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Award, BarChart3, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { Award, BarChart3, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card, KpiCard } from '../components/ui/Card.tsx';
+import { TradeFilterBar } from '../components/filters/TradeFilterBar.tsx';
 import { AnalyticsService, type GroupPnLItem } from '../services/analyticsService.ts';
 import { formatCurrency, formatPercent } from '../lib/utils.ts';
+import { ALL_FILTER, filterTrades, getTradeFilterOptions, type TradeFilters, type TradeSelectFilterKey } from '../lib/tradeFilters.ts';
 import { BarChart, Bar, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 type AnalyticsTab = 'strategy' | 'sector' | 'mood';
 
-export default function Analytics() {
-  const { trades } = useApp();
-  const [activeTab, setActiveTab] = useState<AnalyticsTab>('strategy');
+const DEFAULT_ANALYTICS_FILTERS: TradeFilters = {
+  search: '',
+  account: ALL_FILTER,
+  assetType: ALL_FILTER,
+  symbol: ALL_FILTER,
+  position: ALL_FILTER,
+  strategy: ALL_FILTER,
+  sector: ALL_FILTER,
+  mood: ALL_FILTER,
+  pnlBucket: ALL_FILTER,
+  fromDate: '',
+  toDate: '',
+};
 
-  const summary = useMemo(() => AnalyticsService.summarizeTrades(trades), [trades]);
+export default function Analytics() {
+  const { trades, feeCharges, availableAccounts } = useApp();
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>('strategy');
+  const [filters, setFilters] = useState<TradeFilters>(DEFAULT_ANALYTICS_FILTERS);
+
+  const filterOptions = useMemo(() => getTradeFilterOptions(trades, availableAccounts), [availableAccounts, trades]);
+  const filteredTrades = useMemo(() => filterTrades(trades, filters), [trades, filters]);
+  const analyticsFilterFields = useMemo<TradeSelectFilterKey[]>(() => {
+    const fields: TradeSelectFilterKey[] = ['pnlBucket'];
+    if (filterOptions.accounts.length > 1) fields.unshift('account');
+    if (filterOptions.assetTypes.length > 1) fields.push('assetType');
+    if (filterOptions.positions.length > 1) fields.push('position');
+    return fields;
+  }, [activeTab, filterOptions.accounts.length, filterOptions.assetTypes.length, filterOptions.positions.length]);
+
+  const summary = useMemo(() => AnalyticsService.summarizeTrades(filteredTrades), [filteredTrades]);
   const activeData: GroupPnLItem[] = useMemo(() => {
-    if (activeTab === 'strategy') return AnalyticsService.getPnLByStrategy(trades);
-    if (activeTab === 'sector') return AnalyticsService.getPnLBySector(trades);
-    return AnalyticsService.getPnLByMood(trades);
-  }, [activeTab, trades]);
+    if (activeTab === 'strategy') return AnalyticsService.getPnLByStrategy(filteredTrades);
+    if (activeTab === 'sector') return AnalyticsService.getPnLBySector(filteredTrades);
+    return AnalyticsService.getPnLByMood(filteredTrades);
+  }, [activeTab, filteredTrades]);
 
   const title = activeTab === 'strategy' ? 'Chiến lược' : activeTab === 'sector' ? 'Nhóm ngành' : 'Tâm lý';
   const bestItem = activeData[0];
@@ -28,12 +55,7 @@ export default function Analytics() {
   const positiveItems = activeData.filter((item) => item.pnl > 0);
   const totalGroupedPnl = activeData.reduce((sum, item) => sum + item.pnl, 0);
   const topContribution = totalGroupedPnl > 0 && bestItem ? bestItem.pnl / totalGroupedPnl : 0;
-  const actionText = worstItem && worstItem.pnl < 0
-    ? `Ưu tiên review ${worstItem.name}: đang kéo hiệu suất xuống ${formatCurrency(Math.abs(worstItem.pnl))}.`
-    : bestItem
-      ? `${bestItem.name} đang dẫn hiệu suất. Kiểm tra lại setup để nhân rộng.`
-      : 'Chưa đủ dữ liệu để tạo khuyến nghị.';
-
+  const totalFeeCharges = feeCharges.reduce((sum, item) => sum + item.amount, 0);
   return (
     <div className="mx-auto max-w-[1440px] space-y-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -59,29 +81,28 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <TradeFilterBar
+        title="Bộ lọc phân tích"
+        filters={filters}
+        options={filterOptions}
+        fields={analyticsFilterFields}
+        onChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
+        onReset={() => setFilters(DEFAULT_ANALYTICS_FILTERS)}
+        showSearch
+        showDateRange
+        searchPlaceholder="Tìm mã, nhóm ngành, chiến lược hoặc tâm lý..."
+        resultCount={filteredTrades.length}
+        totalCount={trades.length}
+        compact
+      />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard title="Nhóm tốt nhất" value={bestItem?.name || '—'} icon={Award} delta={bestItem ? formatCurrency(bestItem.pnl) : 'Chưa có'} deltaType={(bestItem?.pnl || 0) >= 0 ? 'positive' : 'negative'} description={`Nhóm ${title.toLowerCase()} có tổng PnL cao nhất trong dữ liệu hiện tại.`} />
         <KpiCard title="Tỉ trọng top" value={formatPercent(topContribution)} icon={BarChart3} delta={bestItem ? bestItem.name : 'Chưa có'} description="Cho biết hiệu suất có đang phụ thuộc quá nhiều vào một nhóm duy nhất hay không." />
         <KpiCard title="Nhóm âm" value={negativeItems.length} icon={TrendingDown} delta={`${positiveItems.length} nhóm dương`} deltaType={negativeItems.length > positiveItems.length ? 'negative' : 'neutral'} description="Số nhóm đang có tổng PnL âm. Đây là danh sách cần review để giảm rò rỉ lợi nhuận." />
         <KpiCard title="Ổn định nhất" value={mostReliable?.name || '—'} icon={Target} delta={mostReliable ? formatPercent(mostReliable.winRate) : 'Chưa đủ mẫu'} deltaType={(mostReliable?.winRate || 0) >= 0.5 ? 'positive' : 'neutral'} description="Nhóm có win rate tốt nhất trong các nhóm có tối thiểu 3 giao dịch." />
+        <KpiCard title="Phí định kỳ" value={formatCurrency(totalFeeCharges)} icon={TrendingUp} delta={`${feeCharges.length} dòng phí`} description="Tổng phí đọc từ tab FEE_CHARGES. Dùng để so với PnL nhóm." />
       </div>
-
-      <Card className="border-[var(--accent)]/20 bg-[linear-gradient(135deg,var(--accent-soft),transparent_34%),var(--card-bg)]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-[var(--accent-soft)] p-2 text-[var(--accent)]"><AlertTriangle size={18} /></div>
-            <div>
-              <div className="text-[14px] font-extrabold text-foreground">Khuyến nghị review</div>
-              <p className="mt-1 text-[13px] font-semibold leading-6 text-[var(--muted)]">{actionText}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-[12px] sm:min-w-[360px]">
-            <div className="rounded-xl bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">Tổng nhóm</div><div className="mt-1 font-mono font-bold text-foreground">{activeData.length}</div></div>
-            <div className="rounded-xl bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">Có lãi</div><div className="mt-1 font-mono font-bold text-[var(--win)]">{positiveItems.length}</div></div>
-            <div className="rounded-xl bg-[var(--surface-soft)] p-3"><div className="type-caption text-[10px]">Cần xử lý</div><div className="mt-1 font-mono font-bold text-[var(--loss)]">{negativeItems.length}</div></div>
-          </div>
-        </div>
-      </Card>
 
       <Card title="Tóm tắt hiệu suất" subtitle="Các chỉ số lõi để quyết định nên tăng cường, giảm size hay tiếp tục quan sát">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

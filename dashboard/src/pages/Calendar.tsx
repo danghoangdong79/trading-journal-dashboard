@@ -1,11 +1,24 @@
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ExternalLink, CalendarRange, TrendingUp, TrendingDown, Target, Clock3, Flame } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, CalendarRange, TrendingUp, TrendingDown, Target, Clock3, Flame } from 'lucide-react';
 import { useApp } from '../context.tsx';
 import { Card } from '../components/ui/Card.tsx';
+import { TradeFilterBar } from '../components/filters/TradeFilterBar.tsx';
 import { AnalyticsService } from '../services/analyticsService.ts';
 import { cn, formatCurrency, formatPercent, buildSheetUrl, buildJournalRowUrl } from '../lib/utils.ts';
+import { ALL_FILTER, filterTrades, getTradeFilterOptions, type TradeFilters, type TradeSelectFilterKey } from '../lib/tradeFilters.ts';
 import type { Trade } from '../types.ts';
+
+const DEFAULT_CALENDAR_FILTERS: TradeFilters = {
+  account: ALL_FILTER,
+  assetType: ALL_FILTER,
+  symbol: ALL_FILTER,
+  status: ALL_FILTER,
+  strategy: ALL_FILTER,
+  pnlBucket: ALL_FILTER,
+  fromDate: '',
+  toDate: '',
+};
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -25,8 +38,17 @@ function formatDateLabel(date: Date) {
 }
 
 export default function Calendar() {
-  const { settings, trades } = useApp();
-  const dailyPnL = useMemo(() => AnalyticsService.getDailyPnL(trades), [trades]);
+  const { settings, trades, availableAccounts } = useApp();
+  const [filters, setFilters] = useState<TradeFilters>(DEFAULT_CALENDAR_FILTERS);
+  const filterOptions = useMemo(() => getTradeFilterOptions(trades, availableAccounts), [availableAccounts, trades]);
+  const calendarFilterFields = useMemo<TradeSelectFilterKey[]>(() => {
+    const fields: TradeSelectFilterKey[] = ['pnlBucket'];
+    if (filterOptions.accounts.length > 1) fields.unshift('account');
+    if (filterOptions.assetTypes.length > 1) fields.push('assetType');
+    return fields;
+  }, [filterOptions.accounts.length, filterOptions.assetTypes.length]);
+  const filteredTrades = useMemo(() => filterTrades(trades, filters), [filters, trades]);
+  const dailyPnL = useMemo(() => AnalyticsService.getDailyPnL(filteredTrades), [filteredTrades]);
   const fallbackDate = new Date();
   const [viewDate, setViewDate] = useState(new Date(fallbackDate.getFullYear(), fallbackDate.getMonth(), 1));
   const [selectedKey, setSelectedKey] = useState(dateKey(fallbackDate));
@@ -34,7 +56,7 @@ export default function Calendar() {
 
   const tradesByDate = useMemo(() => {
     const map: Record<string, Trade[]> = {};
-    trades.forEach((trade) => {
+    filteredTrades.forEach((trade) => {
       const date = AnalyticsService.parseTradeDate(trade);
       if (!date) return;
       const key = dateKey(date);
@@ -42,7 +64,7 @@ export default function Calendar() {
       map[key].push(trade);
     });
     return map;
-  }, [trades]);
+  }, [filteredTrades]);
 
   const dailyMap = useMemo(() => Object.fromEntries(dailyPnL.map((item) => [item.key, item])), [dailyPnL]);
 
@@ -140,6 +162,19 @@ export default function Calendar() {
         </Card>
       </div>
 
+      <TradeFilterBar
+        title="Bộ lọc lịch PnL"
+        filters={filters}
+        options={filterOptions}
+        fields={calendarFilterFields}
+        onChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
+        onReset={() => setFilters(DEFAULT_CALENDAR_FILTERS)}
+        showDateRange
+        resultCount={filteredTrades.length}
+        totalCount={trades.length}
+        compact
+      />
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_390px]">
         {/* Calendar Grid */}
         <Card
@@ -169,6 +204,9 @@ export default function Calendar() {
               <span className="min-w-32 text-center text-[13px] font-bold text-foreground">
                 Tháng {viewDate.getMonth() + 1}/{viewDate.getFullYear()}
               </span>
+              <button onClick={() => moveMonth(1)} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-[var(--surface-hover)] hover:text-foreground">
+                <ChevronRight size={16} />
+              </button>
             </div>
           }
         >

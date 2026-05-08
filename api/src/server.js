@@ -5,43 +5,89 @@ import { GoogleAuth } from 'google-auth-library';
 
 const SHEET_RANGE = 'JOURNAL!A1:X2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
-const INITIAL_CAPITAL = 200_000_000;
+const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:L2000';
+const CONFIG_RISK_RANGE = 'CONFIG!G3:G7';
+const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
+const FALLBACK_INITIAL_CAPITAL = 200_000_000;
 const PORT = Number(process.env.PORT || 8787);
 const DEFAULT_SHEET_ID = process.env.KHANGHANG_SHEET_ID || '';
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://journal.dahodo.com';
+
+function normalizeText(value) {
+    return String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
 
 function parseNumber(value) {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
     const raw = String(value ?? '').trim();
     if (!raw) return 0;
-    const normalized = raw.replace(/\s/g, '').replace(/₫/g, '');
+
+    const normalized = raw.replace(/[^\d,.\-]/g, '');
     const commaCount = (normalized.match(/,/g) || []).length;
     const dotCount = (normalized.match(/\./g) || []).length;
+
     if (commaCount > 0 && dotCount > 0) {
         return normalized.lastIndexOf(',') > normalized.lastIndexOf('.')
             ? Number(normalized.replace(/\./g, '').replace(',', '.')) || 0
             : Number(normalized.replace(/,/g, '')) || 0;
     }
-    if (commaCount > 1) return Number(normalized.replace(/,/g, '')) || 0;
-    if (dotCount > 1) return Number(normalized.replace(/\./g, '')) || 0;
-    if (commaCount === 1) {
+
+    if (commaCount > 1 && dotCount === 0) return Number(normalized.replace(/,/g, '')) || 0;
+    if (dotCount > 1 && commaCount === 0) return Number(normalized.replace(/\./g, '')) || 0;
+
+    if (commaCount === 1 && dotCount === 0) {
         const [left, right] = normalized.split(',');
         return right.length === 3 ? Number(left + right) || 0 : Number(normalized.replace(',', '.')) || 0;
     }
+
     return Number(normalized) || 0;
+}
+
+function parsePercent(value) {
+    const parsed = parseNumber(value);
+    return parsed > 1 ? parsed / 100 : parsed;
 }
 
 function parseDateTime(dateStr, timeStr) {
     const dateValue = String(dateStr || '').trim();
     if (!dateValue) return null;
+
     const timeValue = String(timeStr || '').trim() || '00:00';
     const slashMatch = dateValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (slashMatch) {
         const [, dd, mm, yyyy] = slashMatch;
         return new Date(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T${timeValue}`);
     }
+
+    const isoMatch = dateValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (isoMatch) {
+        const [, yyyy, mm, dd] = isoMatch;
+        return new Date(`${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T${timeValue}`);
+    }
+
     const parsed = new Date(`${dateValue} ${timeValue}`);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalizeStatus(value) {
+    const normalized = normalizeText(value);
+    if (normalized === 'thang') return 'Thắng';
+    if (normalized === 'thua') return 'Thua';
+    if (normalized === 'hoa') return 'Hòa';
+    if (normalized === 'dang mo') return 'Đang mở';
+    return 'Đang mở';
+}
+
+function normalizeAssetType(value) {
+    return normalizeText(value) === 'phai sinh' ? 'Phái sinh' : 'Cổ phiếu';
+}
+
+function normalizePosition(value) {
+    return normalizeText(value) === 'short' ? 'SHORT' : 'LONG';
 }
 
 function getDateKey(value) {
@@ -60,20 +106,80 @@ function mapCashFlows(values = []) {
     values.slice(1).forEach((row) => {
         const key = getDateKey(String(row[0] || '').trim());
         if (!key) return;
-        const type = String(row[2] || '').trim().toLowerCase();
+        const type = normalizeText(row[2]);
         const amount = Math.abs(parseNumber(row[3]));
         if (!amount) return;
-        map[key] = (map[key] || 0) + (type.includes('rút') || type.includes('rut') ? -amount : amount);
+        map[key] = (map[key] || 0) + (type.includes('rut') ? -amount : amount);
     });
-    return Object.entries(map).map(([key, amount]) => ({ key, amount })).sort((a, b) => a.key.localeCompare(b.key));
+    return Object.entries(map)
+        .map(([key, amount]) => ({ key, amount }))
+        .sort((left, right) => left.key.localeCompare(right.key));
 }
 
-function mapRows(values = [], cashFlows = []) {
-    let runningEquity = INITIAL_CAPITAL;
+function mapFeeCharges(values = []) {
+    return values.slice(1)
+        .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== ''))
+        .map((row, index) => ({
+            rowNumber: index + 2,
+            date: String(row[0] || '').trim(),
+            account: String(row[2] || '').trim(),
+            category: String(row[4] || 'Phí định kỳ').trim(),
+            amount: Math.abs(parseNumber(row[11] ?? row[10] ?? row[9])),
+            note: [String(row[3] || '').trim(), String(row[1] || '').trim()].filter(Boolean).join(' · '),
+        }))
+        .filter((charge) => charge.amount > 0 && charge.date);
+}
+
+function mapSheetConfig(values = []) {
+    const stockCapital = parseNumber(values[0]?.[0]);
+    const derivativesCapital = parseNumber(values[1]?.[0]);
+    const maxRiskPerTradePct = parsePercent(values[2]?.[0]);
+    const monthlyTargetPct = parsePercent(values[3]?.[0]);
+    const minRewardRisk = parseNumber(values[4]?.[0]);
+
+    if (![stockCapital, derivativesCapital, maxRiskPerTradePct, monthlyTargetPct, minRewardRisk].some((value) => value > 0)) {
+        return null;
+    }
+
+    return {
+        initialCapital: stockCapital + derivativesCapital,
+        stockCapital,
+        derivativesCapital,
+        maxRiskPerTradePct,
+        monthlyTargetPct,
+        minRewardRisk,
+    };
+}
+
+function uniqueSortedStrings(values = []) {
+    const set = new Set();
+    values.forEach((value) => {
+        const normalized = String(value || '').trim();
+        if (!normalized) return;
+        set.add(normalized);
+    });
+    return Array.from(set).sort((left, right) => left.localeCompare(right, 'vi'));
+}
+
+function mapAvailableAccounts(values = []) {
+    return uniqueSortedStrings(
+        values
+            .map((row) => String(row?.[0] || '').trim())
+            .filter((value) => {
+                const normalized = normalizeText(value);
+                return value && value !== '*' && normalized !== 'tat ca' && normalized !== 'tai khoan';
+            }),
+    );
+}
+
+function mapRows(values = [], cashFlows = [], initialCapital = FALLBACK_INITIAL_CAPITAL) {
+    let runningEquity = initialCapital;
     let cashFlowIndex = 0;
     const maxTradeKey = todayKey();
-    const rows = values.slice(1).filter((row) => row.some((cell) => String(cell ?? '').trim() !== ''));
-    return rows
+
+    const trades = values
+        .slice(1)
+        .filter((row) => row.some((cell) => String(cell ?? '').trim() !== ''))
         .filter((row) => {
             const tradeKey = getDateKey(String(row[9] || row[7] || '').trim());
             return !tradeKey || tradeKey <= maxTradeKey;
@@ -86,21 +192,21 @@ function mapRows(values = [], cashFlows = []) {
             const closeTime = String(row[10] || '').trim();
             const tradeKey = getDateKey(closeDate || openDate);
             let cashFlow = 0;
+
             while (cashFlowIndex < cashFlows.length && (!tradeKey || cashFlows[cashFlowIndex].key <= tradeKey)) {
                 cashFlow += cashFlows[cashFlowIndex].amount;
                 cashFlowIndex += 1;
             }
+
             runningEquity += cashFlow + netPnL;
-            const statusText = String(row[0] || '').trim();
-            const assetText = String(row[2] || '').trim();
-            const positionText = String(row[4] || '').trim();
+
             return {
                 rowNumber: index + 2,
-                status: ['Thắng', 'Thua', 'Hòa', 'Đang mở'].includes(statusText) ? statusText : 'Đang mở',
+                status: normalizeStatus(row[0]),
                 account: String(row[1] || '').trim(),
-                assetType: assetText === 'Phái sinh' ? 'Phái sinh' : 'Cổ phiếu',
+                assetType: normalizeAssetType(row[2]),
                 symbol: String(row[3] || '').trim(),
-                position: positionText === 'SHORT' ? 'SHORT' : 'LONG',
+                position: normalizePosition(row[4]),
                 orderType: String(row[5] || '').trim(),
                 strategy: String(row[6] || '').trim(),
                 openDate,
@@ -126,6 +232,15 @@ function mapRows(values = [], cashFlows = []) {
                 equity: runningEquity,
             };
         });
+
+    const trailingCashFlow = cashFlows.slice(cashFlowIndex).reduce((sum, item) => sum + item.amount, 0);
+    if (trailingCashFlow && trades.length > 0) {
+        const lastTrade = trades[trades.length - 1];
+        lastTrade.cashFlow += trailingCashFlow;
+        lastTrade.equity += trailingCashFlow;
+    }
+
+    return trades;
 }
 
 function loadCredentials() {
@@ -140,8 +255,17 @@ async function fetchSheetValues(auth, sheetId, range) {
         headers: { Authorization: `Bearer ${token.token || token}` },
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data?.error?.message || 'Cannot read Google Sheet');
+    if (!response.ok) throw new Error(data?.error?.message || `Cannot read range ${range}`);
     return Array.isArray(data.values) ? data.values : [];
+}
+
+async function fetchAvailableAccounts(auth, sheetId) {
+    for (const range of ACCOUNT_LIST_RANGES) {
+        const values = await fetchSheetValues(auth, sheetId, range).catch(() => []);
+        const accounts = mapAvailableAccounts(values);
+        if (accounts.length > 0) return accounts;
+    }
+    return [];
 }
 
 const app = express();
@@ -169,12 +293,29 @@ app.get('/api/trades', async (req, res) => {
             keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
             scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
         });
-        const [journalValues, cashFlowValues] = await Promise.all([
+
+        const [journalValues, cashFlowValues, feeValues, configValues, availableAccounts] = await Promise.all([
             fetchSheetValues(auth, sheetId, SHEET_RANGE),
             fetchSheetValues(auth, sheetId, CASHFLOW_RANGE).catch(() => []),
+            fetchSheetValues(auth, sheetId, FEE_CHARGES_RANGE).catch(() => []),
+            fetchSheetValues(auth, sheetId, CONFIG_RISK_RANGE).catch(() => []),
+            fetchAvailableAccounts(auth, sheetId),
         ]);
-        const trades = mapRows(journalValues, mapCashFlows(cashFlowValues));
-        const payload = { trades, source: 'vps-service-account', count: trades.length };
+
+        const sheetConfig = mapSheetConfig(configValues);
+        const trades = mapRows(journalValues, mapCashFlows(cashFlowValues), sheetConfig?.initialCapital ?? FALLBACK_INITIAL_CAPITAL);
+        const feeCharges = mapFeeCharges(feeValues);
+
+        const payload = {
+            trades,
+            feeCharges,
+            availableAccounts,
+            sheetConfig,
+            source: 'vps-service-account',
+            count: trades.length,
+            feeChargeCount: feeCharges.length,
+        };
+
         cache = { key: cacheKey, expiresAt: Date.now() + 60_000, payload };
         res.json(payload);
     } catch (error) {

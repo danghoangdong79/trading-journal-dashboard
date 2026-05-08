@@ -1,11 +1,6 @@
-﻿import {
-  Database,
-  TrendingUp,
-  Zap,
-  History,
-  Target,
-  ShieldCheck,
-} from 'lucide-react';
+﻿import { Database, TrendingUp, Zap, History, Target, ShieldCheck } from 'lucide-react';
+import type { ReactNode } from 'react';
+import type { MetricKey } from '../types.ts';
 import { useApp } from '../context.tsx';
 import { KpiCard, Card } from '../components/ui/Card.tsx';
 import { formatCurrency, formatPercent, cn } from '../lib/utils.ts';
@@ -29,11 +24,35 @@ const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 
 export default function Overview() {
   const navigate = useNavigate();
-  const { trades, stats, isLoading, authState, settings } = useApp();
+  const { trades, feeCharges, stats, isLoading, authState, settings } = useApp();
   const [equityMode, setEquityMode] = useState<'trade' | 'day' | 'month' | 'year'>('day');
 
   const equityCurve = useMemo(() => AnalyticsService.getEquityTimeline(trades, equityMode), [trades, equityMode]);
   const profitFactor = Number.isFinite(stats?.profitFactor) ? stats!.profitFactor.toFixed(2) : '0.00';
+  const totalFeeCharges = feeCharges.reduce((sum, item) => sum + item.amount, 0);
+  const metricCards: { key: MetricKey; node: ReactNode }[] = [
+    {
+      key: 'netPnL',
+      node: <KpiCard title="Lãi/Lỗ ròng" value={formatCurrency(stats?.netPnL || 0)} icon={TrendingUp} delta={`${stats?.totalTrades || 0} lệnh đã đóng`} deltaType={(stats?.netPnL || 0) >= 0 ? 'positive' : 'negative'} isLoading={isLoading} description="Tổng lãi/lỗ ròng sau phí và thuế của các giao dịch trong dữ liệu hiện tại." onClick={() => navigate('/journal')} />,
+    },
+    {
+      key: 'currentBalance',
+      node: <KpiCard title="Số dư hiện tại" value={formatCurrency(stats?.currentBalance || 0)} icon={Zap} isLoading={isLoading} description="Giá trị đường vốn tại giao dịch mới nhất, dùng để theo dõi vốn tăng hay giảm theo thời gian." onClick={() => navigate('/calendar')} />,
+    },
+    {
+      key: 'totalTrades',
+      node: <KpiCard title="Tổng số lệnh" value={stats?.totalTrades || 0} icon={History} isLoading={isLoading} description="Số giao dịch đã đóng được dùng để tính KPI, không bao gồm lệnh đang mở." onClick={() => navigate('/journal')} />,
+    },
+    {
+      key: 'expectancy',
+      node: <KpiCard title="Kỳ vọng/Lệnh" value={formatCurrency(stats?.expectancy || 0)} icon={Target} isLoading={isLoading} description="Lãi/lỗ trung bình trên mỗi lệnh đã đóng. Chỉ số này cho biết mỗi giao dịch kỳ vọng tạo ra bao nhiêu tiền." onClick={() => navigate('/analytics')} />,
+    },
+    {
+      key: 'feeCharges',
+      node: <KpiCard title="Phí định kỳ" value={formatCurrency(totalFeeCharges)} icon={ShieldCheck} isLoading={isLoading} description="Tổng phí ngoài lệnh đọc từ tab FEE_CHARGES. Dùng để nhìn chi phí vận hành thật." onClick={() => navigate('/guide')} />,
+    },
+  ];
+  const visibleMetricCards = metricCards.filter((item) => settings.metrics.visible[item.key]).sort((left, right) => left.key === settings.metrics.primary ? -1 : right.key === settings.metrics.primary ? 1 : 0);
   const winRateData = [
     { name: 'Thắng', value: stats?.winningTrades || 0, color: 'var(--win)' },
     { name: 'Thua', value: stats?.losingTrades || 0, color: 'var(--loss)' },
@@ -110,20 +129,8 @@ export default function Overview() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          title="Lãi/Lỗ ròng"
-          value={formatCurrency(stats?.netPnL || 0)}
-          icon={TrendingUp}
-          delta={`${stats?.totalTrades || 0} lệnh đã đóng`}
-          deltaType={(stats?.netPnL || 0) >= 0 ? 'positive' : 'negative'}
-          isLoading={isLoading}
-          description="Tổng lãi/lỗ ròng sau phí và thuế của các giao dịch trong dữ liệu hiện tại."
-          onClick={() => navigate('/journal')}
-        />
-        <KpiCard title="Số dư hiện tại" value={formatCurrency(stats?.currentBalance || 0)} icon={Zap} isLoading={isLoading} description="Giá trị đường vốn tại giao dịch mới nhất, dùng để theo dõi vốn tăng hay giảm theo thời gian." onClick={() => navigate('/calendar')} />
-        <KpiCard title="Tổng số lệnh" value={stats?.totalTrades || 0} icon={History} isLoading={isLoading} description="Số giao dịch đã đóng được dùng để tính KPI, không bao gồm lệnh đang mở." onClick={() => navigate('/journal')} />
-        <KpiCard title="Kỳ vọng/Lệnh" value={formatCurrency(stats?.expectancy || 0)} icon={Target} isLoading={isLoading} description="Lãi/lỗ trung bình trên mỗi lệnh đã đóng. Chỉ số này cho biết mỗi giao dịch kỳ vọng tạo ra bao nhiêu tiền." onClick={() => navigate('/analytics')} />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {visibleMetricCards.map((item) => <div key={item.key} className="h-full">{item.node}</div>)}
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">

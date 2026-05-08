@@ -35,6 +35,15 @@ export interface Trade {
   equity: number;
 }
 
+export interface FeeCharge {
+  rowNumber: number;
+  date: string;
+  account: string;
+  category: string;
+  amount: number;
+  note: string;
+}
+
 export interface TradingStats {
   netPnL: number;
   currentBalance: number;
@@ -71,13 +80,31 @@ export interface RiskSettings {
   maxDrawdownPct: number;
 }
 
+export interface SheetRuntimeConfig {
+  initialCapital: number;
+  stockCapital: number;
+  derivativesCapital: number;
+  maxRiskPerTradePct: number;
+  monthlyTargetPct: number;
+  minRewardRisk: number;
+}
+
+export type MetricKey = 'netPnL' | 'currentBalance' | 'totalTrades' | 'expectancy' | 'feeCharges';
+
+export interface MetricSettings {
+  visible: Record<MetricKey, boolean>;
+  primary: MetricKey;
+}
+
 export interface DashboardSettings {
   sheetId: string;
   apiKey: string;
   isDemoMode: boolean;
   auth: AuthSettings;
+  siteName?: string;
   appName?: string;
   risk: RiskSettings;
+  metrics: MetricSettings;
   /** Google Sheets tab gid for JOURNAL (default: 913303097) */
   journalGid?: string;
   /** Google Sheets tab gid for CONFIG (default: 0) */
