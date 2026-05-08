@@ -203,11 +203,26 @@ def setup_trading_journal(client_name="KhangHang1 VIP", initial_capital=20000000
         "horizontalAlignment": "CENTER"
     })
 
+    # --- USERS ---
+    print("[6/6] Thiet lap USERS...")
+    ws_users = sh.add_worksheet(title="USERS", rows=50, cols=7)
+    users_data = [
+        ["STT", "Username", "PasswordHash", "Role", "Tên hiển thị", "Trạng thái", "Lần đăng nhập cuối"],
+        [1, "admin", "admin", "admin", "Admin", "Bật", ""],
+    ]
+    ws_users.update(users_data, 'A1')
+    ws_users.format('A1:G1', {
+        "backgroundColor": {"red": 0.1, "green": 0.1, "blue": 0.2},
+        "textFormat": {"bold": True, "foregroundColor": {"red": 1, "green": 1, "blue": 1}},
+        "horizontalAlignment": "CENTER"
+    })
+    time.sleep(1)
+
     # --- DONE ---
     print(f"\n{'='*60}")
     print(f"  TAO THANH CONG!")
     print(f"  URL: {sh.url}")
-    print(f"  Sheets: CONFIG | FEE_PROFILE | FEE_CHARGES | JOURNAL | SUMMARY")
+    print(f"  Sheets: CONFIG | FEE_PROFILE | FEE_CHARGES | JOURNAL | SUMMARY | USERS")
     print(f"  Von: {initial_capital:,.0f} VND")
     print(f"  SA access: {sa_email}")
     print(f"{'='*60}")
