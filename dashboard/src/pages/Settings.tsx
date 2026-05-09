@@ -618,7 +618,7 @@ export default function Settings() {
               {saveSuccess ? <CheckCircle size={16} /> : <Save size={16} />}
               {saveSuccess ? 'Đã lưu' : 'Lưu kết nối'}
             </button>
-            <button onClick={() => void refreshData()} disabled={isLoading} className="rounded-md border border-[var(--card-border)] px-3 py-2.5 text-[12px] font-semibold text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground disabled:opacity-50">
+            <button onClick={() => void refreshData(true)} disabled={isLoading} className="rounded-md border border-[var(--card-border)] px-3 py-2.5 text-[12px] font-semibold text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground disabled:opacity-50">
               Kiểm tra
             </button>
             <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="rounded-md border border-[var(--card-border)] p-2.5 text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)]" title="Lấy API Key">

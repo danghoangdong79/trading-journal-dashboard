@@ -30,7 +30,7 @@ interface AppContextType {
   error: string | null;
   authError: string | null;
   updateSettings: (newSettings: Partial<DashboardSettings>) => void;
-  refreshData: () => Promise<void>;
+  refreshData: (forceRefresh?: boolean) => Promise<void>;
   refreshAuthUsers: (forceRefresh?: boolean) => Promise<void>;
   authState: AuthState;
   login: (username: string, password: string, rememberMe?: boolean) => Promise<boolean>;
@@ -324,7 +324,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshData = async () => {
+  const refreshData = async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
 
@@ -341,10 +341,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nextSheetConfig = null;
       } else {
         [nextTrades, nextFeeCharges, nextAvailableAccounts, nextSheetConfig] = await Promise.all([
-          GoogleSheetsService.fetchTrades(settings.sheetId, settings.apiKey),
-          GoogleSheetsService.fetchFeeCharges(settings.sheetId, settings.apiKey).catch(() => []),
-          GoogleSheetsService.fetchAvailableAccounts(settings.sheetId, settings.apiKey).catch(() => []),
-          GoogleSheetsService.fetchSheetConfig(settings.sheetId, settings.apiKey).catch(() => null),
+          GoogleSheetsService.fetchTrades(settings.sheetId, settings.apiKey, { forceRefresh }),
+          GoogleSheetsService.fetchFeeCharges(settings.sheetId, settings.apiKey, { forceRefresh }).catch(() => []),
+          GoogleSheetsService.fetchAvailableAccounts(settings.sheetId, settings.apiKey, { forceRefresh }).catch(() => []),
+          GoogleSheetsService.fetchSheetConfig(settings.sheetId, settings.apiKey, { forceRefresh }).catch(() => null),
         ]);
       }
 

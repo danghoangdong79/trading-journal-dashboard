@@ -324,7 +324,8 @@ app.get('/api/trades', async (req, res) => {
         if (!sheetId) return res.status(400).json({ error: 'Missing sheetId' });
 
         const cacheKey = sheetId;
-        if (cache.key === cacheKey && cache.payload && Date.now() < cache.expiresAt) {
+        const forceRefresh = String(req.query.refresh || req.query.force || '') === '1';
+        if (!forceRefresh && cache.key === cacheKey && cache.payload && Date.now() < cache.expiresAt) {
             return res.json({ ...cache.payload, cached: true });
         }
 

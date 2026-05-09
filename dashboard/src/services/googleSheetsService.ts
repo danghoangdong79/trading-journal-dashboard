@@ -288,7 +288,8 @@ async function fetchProxyDataset(sheetId: string, options: FetchOptions = {}) {
   }
 
   const request = (async () => {
-    const response = await fetch(`${apiBaseUrl}/api/trades?sheetId=${encodeURIComponent(cacheKey)}`);
+    const refreshParam = forceRefresh ? '&refresh=1' : '';
+    const response = await fetch(`${apiBaseUrl}/api/trades?sheetId=${encodeURIComponent(cacheKey)}${refreshParam}`);
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       throw new Error('Endpoint dữ liệu không trả JSON. Nếu đang chạy trên Cloudflare Pages, hãy nhập API Key hoặc dùng Worker proxy.');
@@ -391,7 +392,7 @@ function mapRows(rows: unknown[][], cashFlows: CashFlowEvent[], initialCapital =
 }
 
 export class GoogleSheetsService {
-  static async fetchTrades(sheetId: string, apiKey: string): Promise<Trade[]> {
+  static async fetchTrades(sheetId: string, apiKey: string, options: FetchOptions = {}): Promise<Trade[]> {
     if (!sheetId) {
       throw new Error('Sheet ID là bắt buộc.');
     }
@@ -421,7 +422,7 @@ export class GoogleSheetsService {
           }
           return payload as ProxyDatasetResponse;
         })()
-      : await fetchProxyDataset(normalizedSheetId);
+      : await fetchProxyDataset(normalizedSheetId, options);
 
     if (Array.isArray(data.trades)) {
       return data.trades.map((trade: Trade, index: number) => ({ ...trade, cashFlow: trade.cashFlow || 0, rowNumber: trade.rowNumber || index + 2 }));
@@ -448,14 +449,14 @@ export class GoogleSheetsService {
     return mapRows(data.values.slice(1), cashFlows, sheetConfig?.initialCapital ?? FALLBACK_INITIAL_CAPITAL);
   }
 
-  static async fetchFeeCharges(sheetId: string, apiKey: string): Promise<FeeCharge[]> {
+  static async fetchFeeCharges(sheetId: string, apiKey: string, options: FetchOptions = {}): Promise<FeeCharge[]> {
     if (!sheetId) return [];
 
     const normalizedSheetId = sheetId.trim() || DEFAULT_SHEET_ID;
     const normalizedApiKey = apiKey.trim();
 
     if (!normalizedApiKey) {
-      const data = await fetchProxyDataset(normalizedSheetId).catch(() => ({} as ProxyDatasetResponse));
+      const data = await fetchProxyDataset(normalizedSheetId, options).catch(() => ({} as ProxyDatasetResponse));
       if (Array.isArray(data.feeCharges)) return data.feeCharges;
       return [];
     }
@@ -467,14 +468,14 @@ export class GoogleSheetsService {
     return mapFeeCharges(data.values);
   }
 
-  static async fetchAvailableAccounts(sheetId: string, apiKey: string): Promise<string[]> {
+  static async fetchAvailableAccounts(sheetId: string, apiKey: string, options: FetchOptions = {}): Promise<string[]> {
     if (!sheetId) return [];
 
     const normalizedSheetId = sheetId.trim() || DEFAULT_SHEET_ID;
     const normalizedApiKey = apiKey.trim();
 
     if (!normalizedApiKey) {
-      const data = await fetchProxyDataset(normalizedSheetId).catch(() => ({} as ProxyDatasetResponse));
+      const data = await fetchProxyDataset(normalizedSheetId, options).catch(() => ({} as ProxyDatasetResponse));
       if (!Array.isArray(data.availableAccounts)) return [];
       return uniqueSortedStrings(data.availableAccounts);
     }
@@ -492,14 +493,14 @@ export class GoogleSheetsService {
     return [];
   }
 
-  static async fetchSheetConfig(sheetId: string, apiKey: string): Promise<SheetRuntimeConfig | null> {
+  static async fetchSheetConfig(sheetId: string, apiKey: string, options: FetchOptions = {}): Promise<SheetRuntimeConfig | null> {
     if (!sheetId) return null;
 
     const normalizedSheetId = sheetId.trim() || DEFAULT_SHEET_ID;
     const normalizedApiKey = apiKey.trim();
 
     if (!normalizedApiKey) {
-      const data = await fetchProxyDataset(normalizedSheetId).catch(() => ({} as ProxyDatasetResponse));
+      const data = await fetchProxyDataset(normalizedSheetId, options).catch(() => ({} as ProxyDatasetResponse));
       return data.sheetConfig || null;
     }
 

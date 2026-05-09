@@ -73,7 +73,7 @@ export default function Topbar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isMo
             <ExternalLink size={14} />
             <span className="hidden lg:inline">Mở sheet</span>
           </a>
-          <button onClick={() => void refreshData()} disabled={isLoading} className="rounded-lg p-2 text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground disabled:opacity-50" title="Tải lại dữ liệu">
+          <button onClick={() => void refreshData(true)} disabled={isLoading} className="rounded-lg p-2 text-[var(--muted)] transition-all hover:bg-[var(--surface-hover)] hover:text-foreground disabled:opacity-50" title="Tải lại dữ liệu">
             <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
           </button>
         </div>
