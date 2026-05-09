@@ -14,6 +14,9 @@ const USERS_RANGE = 'USERS!A1:G500';
 const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
 const DEFAULT_SERVICE_ACCOUNT_FILE = 'gen-lang-client-0658622290-67f651f4974d.json';
 const FALLBACK_INITIAL_CAPITAL = 200_000_000;
+const GOOGLE_SHEETS_VALUE_PARAMS = 'valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
+const GOOGLE_SHEETS_EPOCH_MS = Date.UTC(1899, 11, 30);
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 interface CashFlowEvent {
   key: string;
@@ -70,6 +73,36 @@ function parsePercent(value: unknown): number {
   return parsed > 1 ? parsed / 100 : parsed;
 }
 
+function googleSerialDate(value: number) {
+  if (!Number.isFinite(value)) return null;
+  return new Date(GOOGLE_SHEETS_EPOCH_MS + Math.floor(value) * MS_PER_DAY);
+}
+
+function formatDateCell(value: unknown) {
+  if (typeof value === 'number') {
+    const date = googleSerialDate(value);
+    if (date) {
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      return `${day}/${month}/${date.getUTCFullYear()}`;
+    }
+  }
+
+  return String(value || '').trim();
+}
+
+function formatTimeCell(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const fraction = ((value % 1) + 1) % 1;
+    const totalMinutes = Math.round(fraction * 24 * 60) % (24 * 60);
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const minutes = String(totalMinutes % 60).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  return String(value || '').trim();
+}
+
 function parseDateTime(dateStr: string, timeStr: string): Date | null {
   const dateValue = String(dateStr || '').trim();
   if (!dateValue) return null;
@@ -113,16 +146,11 @@ function getDateKey(value: string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function todayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
 function mapCashFlows(values: unknown[][]): CashFlowEvent[] {
   const map: Record<string, number> = {};
 
   values.slice(1).forEach((row) => {
-    const key = getDateKey(String(row[0] || '').trim());
+    const key = getDateKey(formatDateCell(row[0]));
     if (!key) return;
 
     const type = normalizeText(row[2]);
@@ -142,7 +170,7 @@ function mapFeeCharges(values: unknown[][]) {
     .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== ''))
     .map((row, index) => ({
       rowNumber: index + 2,
-      date: String(row[0] || '').trim(),
+      date: formatDateCell(row[0]),
       account: String(row[2] || '').trim(),
       category: String(row[4] || 'Phí định kỳ').trim(),
       amount: Math.abs(parseNumber(row[11] ?? row[10] ?? row[9])),
@@ -211,21 +239,16 @@ function mapUsers(values: unknown[][]) {
 function mapRows(values: unknown[][], cashFlows: CashFlowEvent[] = [], initialCapital = FALLBACK_INITIAL_CAPITAL) {
   let runningEquity = initialCapital;
   let cashFlowIndex = 0;
-  const maxTradeKey = todayKey();
 
   const trades = values
     .slice(1)
     .filter((row) => row.some((cell) => String(cell ?? '').trim() !== ''))
-    .filter((row) => {
-      const tradeKey = getDateKey(String(row[9] || row[7] || '').trim());
-      return !tradeKey || tradeKey <= maxTradeKey;
-    })
     .map((row, index) => {
       const netPnL = parseNumber(row[20]);
-      const openDate = String(row[7] || '').trim();
-      const openTime = String(row[8] || '').trim();
-      const closeDate = String(row[9] || '').trim();
-      const closeTime = String(row[10] || '').trim();
+      const openDate = formatDateCell(row[7]);
+      const openTime = formatTimeCell(row[8]);
+      const closeDate = formatDateCell(row[9]);
+      const closeTime = formatTimeCell(row[10]);
       const tradeKey = getDateKey(closeDate || openDate);
       let cashFlow = 0;
 
@@ -308,7 +331,7 @@ async function getAccessToken(serviceAccount: { client_email: string; private_ke
 }
 
 async function fetchSheetValues(token: string, sheetId: string, range: string) {
-  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`, {
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?${GOOGLE_SHEETS_VALUE_PARAMS}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const data = await response.json();
