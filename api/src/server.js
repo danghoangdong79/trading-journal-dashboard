@@ -112,8 +112,8 @@ function normalizeStatus(value) {
     if (normalized === 'thĐang') return 'Thắng';
     if (normalized === 'thua') return 'Thua';
     if (normalized === 'hoa') return 'Hòa';
-    if (normalized === 'dĐang mo') return 'ĐĐang mở';
-    return 'ĐĐang mở';
+    if (normalized === 'dĐang mo') return 'Đang mở';
+    return 'Đang mở';
 }
 
 function normalizeAssetType(value) {
