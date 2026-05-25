@@ -1,4 +1,4 @@
-"""Safe rebuild for the live Ocean 24-column JOURNAL schema."""
+"""Safe rebuild for the live Ocean JOURNAL schema."""
 import argparse
 import json
 import os
@@ -67,7 +67,7 @@ def build_config_rows():
         ["THAM SO GIAO DICH", "", "", "", "QUAN TRI RUI RO", "", "", "", "TICH HOP", "", ""],
         ["Loai", "Tham so", "Gia tri", "", "Tieu chi", "Tham so", "Gia tri", "", "Phan he", "Cau hinh", "Gia tri"],
         ["Co phieu", "He so gia", 1000, "", "Von", "Von Co Phieu", 500000000, "", "Google Sheets", "Sheet chinh", "JOURNAL"],
-        ["Co phieu", "Phi giao dich", 0.0015, "", "Von", "Von Phai Sinh", 100000000, "", "Dashboard", "Range", "JOURNAL!A1:X2000"],
+        ["Co phieu", "Phi giao dich", 0.0015, "", "Von", "Von Phai Sinh", 100000000, "", "Dashboard", "Range", "JOURNAL!A1:Y2000"],
         ["Co phieu", "Thue TNCN", 0.001, "", "Rui ro", "Risk per trade", 0.02, "", "n8n", "Webhook", "Pending"],
         ["Phai sinh", "He so diem", 100000, "", "Muc tieu", "Monthly target", 0.05, "", "Telegram", "Bot", "Pending"],
         ["Phai sinh", "Phi giao dich", 4000, "", "", "", "", "", "Email", "Parser", "Pending"],
@@ -89,6 +89,25 @@ def build_setup_rows():
     ]
 
 
+def summary_cashflow_formula():
+    tat_ca = "T\u1ea5t c\u1ea3"
+    theo_thang = "Theo th\u00e1ng"
+    regex = "r\u00fat|rut|withdraw|outflow"
+    return (
+        '=IFERROR(SUM(FILTER('
+        f'IF(REGEXMATCH(LOWER(CASHFLOW!C2:C),"{regex}"),-ABS(CASHFLOW!D2:D),ABS(CASHFLOW!D2:D)),'
+        'CASHFLOW!A2:A<>"",'
+        f'IF(OR($C$8="",$C$8="{tat_ca}"),CASHFLOW!B2:B<>"",CASHFLOW!B2:B=$C$8),'
+        f'IF($E$4="{theo_thang}",IF($E$5="{tat_ca}",CASHFLOW!A2:A<>"",YEAR(CASHFLOW!A2:A)=$E$5),IF(ISBLANK($E$7),CASHFLOW!A2:A<>"",CASHFLOW!A2:A>=$E$7)),'
+        f'IF($E$4="{theo_thang}",IF($E$6="{tat_ca}",CASHFLOW!A2:A<>"",MONTH(CASHFLOW!A2:A)=$E$6),IF(ISBLANK($E$8),CASHFLOW!A2:A<>"",CASHFLOW!A2:A<=$E$8))'
+        ')),0)'
+    )
+
+
+def build_cashflow_rows():
+    return [["Ng\u00e0y", "T\u00e0i kho\u1ea3n", "Lo\u1ea1i", "S\u1ed1 ti\u1ec1n", "Ghi ch\u00fa"]]
+
+
 def build_summary_rows():
     return [
         ["", "TONG HOP GIAO DICH"],
@@ -97,8 +116,8 @@ def build_summary_rows():
         ["", "Tai san", "Tat ca", "", "", "", "", "Von ban dau", "=CONFIG!$G$3 + CONFIG!$G$4", "", "Tong GD", '=COUNTA(JOURNAL!D2:D)', "", "Lai CP", '=SUMIF(JOURNAL!C2:C,"C\u1ed5 phi\u1ebfu",JOURNAL!U2:U)'],
         ["", "Vi the", "Tat ca", "", "", "", "", "Lai/Lo rong", '=SUM(JOURNAL!U2:U)', "", "Win rate", '=IFERROR(COUNTIF(JOURNAL!A2:A,"Th\u1eafng")/COUNTIFS(JOURNAL!A2:A,"<>",JOURNAL!A2:A,"<>\u0110ang m\u1edf"),0)', "", "Lai PS", '=SUMIF(JOURNAL!C2:C,"Ph\u00e1i sinh",JOURNAL!U2:U)'],
         ["", "Chien luoc", "Tat ca", "", "", "", "", "Tang truong", '=IFERROR(I5/I4,0)', "", "GD thang", '=COUNTIF(JOURNAL!A2:A,"Th\u1eafng")', "", "Phi & Thue", '=SUM(JOURNAL!T2:T)'],
-        ["", "Nhom nganh", "Tat ca", "", "", "", "", "So du hien tai", '=I4+I5', "", "GD thua", '=COUNTIF(JOURNAL!A2:A,"Thua")', "", "Profit Factor", '=IFERROR(SUMIF(JOURNAL!U2:U,">0")/ABS(SUMIF(JOURNAL!U2:U,"<0")),0)'],
-        ["", "Tai khoan", "Tat ca", "", "", "", "", "", "", "", "Dang mo", '=COUNTIF(JOURNAL!A2:A,"\u0110ang m\u1edf")', "", "Max Loss", '=IFERROR(MIN(JOURNAL!U2:U),0)'],
+        ["", "Nhom nganh", "Tat ca", "", "", "", "", "Nap/Rut rong", summary_cashflow_formula(), "", "GD thua", '=COUNTIF(JOURNAL!A2:A,"Thua")', "", "Muc tieu", '=CONFIG!$G$6'],
+        ["", "Tai khoan", "Tat ca", "", "", "", "", "So du hien tai", '=I4+I5+I7', "", "Dang mo", '=COUNTIF(JOURNAL!A2:A,"\u0110ang m\u1edf")', "", "Max Loss", '=IFERROR(MIN(JOURNAL!U2:U),0)'],
         [],
         ["Trang Thai", "Tai San", "Ma GD", "Vi The", "Chien Luoc", "Ngay Mo", "Ngay Dong", "So Ngay", "Khoi Luong", "Gia Vao", "Gia Dong", "Bien Do", "Lai/Lo Gop", "Phi & Thue", "Lai/Lo Rong", "Tam Ly", "Ghi Chu Review"],
         ['=IFERROR(QUERY(JOURNAL!A2:W,"select A,C,D,E,G,H,J,L,M,N,O,R,S,T,U,V,W where D is not null",0),{"No data","","","","","","","","","","","","","","","",""})'],
@@ -153,6 +172,9 @@ def rebuild(sheet_id=SHEET_ID, confirm=False, dry_run=False):
         cell = f"{col}1" if col != "X" else "X2"
         ws_journal.update(values=[[formula]], range_name=cell, value_input_option="USER_ENTERED")
 
+    ws_cashflow = sh.add_worksheet("CASHFLOW", rows=2000, cols=5)
+    ws_cashflow.update(values=build_cashflow_rows(), range_name="A1")
+
     ws_summary = sh.add_worksheet("SUMMARY", rows=2000, cols=40)
     ws_summary.update(values=build_summary_rows(), range_name="A1", value_input_option="USER_ENTERED")
 
@@ -168,6 +190,9 @@ def rebuild(sheet_id=SHEET_ID, confirm=False, dry_run=False):
         set_validation(ws_journal.id, "H", "DATE_IS_VALID", None),
         set_validation(ws_journal.id, "J", "DATE_IS_VALID", None),
         set_validation(ws_journal.id, "V", "ONE_OF_RANGE", ["=FORMULAS!$D$2:$D"]),
+        set_validation(ws_cashflow.id, "A", "DATE_IS_VALID", None, strict=False),
+        set_validation(ws_cashflow.id, "B", "ONE_OF_RANGE", ["=FORMULAS!$I$2:$I"], strict=False),
+        set_validation(ws_cashflow.id, "C", "ONE_OF_LIST", ["N\u1ea1p ti\u1ec1n", "R\u00fat ti\u1ec1n"]),
     ]
     sheets_api.spreadsheets().batchUpdate(spreadsheetId=sheet_id, body={"requests": requests}).execute()
 

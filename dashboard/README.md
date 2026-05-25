@@ -21,7 +21,7 @@ View your app in AI Studio: https://ai.studio/apps/723a789b-c125-4793-9f53-95b98
 
 ## Deploy Cloudflare Pages
 
-Project: `dahodo-trading-journal`
+Project: `trading-journal`
 
 Custom domain: `journal.dahodo.com`
 
@@ -38,8 +38,8 @@ cd dashboard
 $env:CLOUDFLARE_ACCOUNT_ID="<account-id>"
 $env:CLOUDFLARE_API_TOKEN="<api-token>"
 npm run build
-npx wrangler pages project create dahodo-trading-journal --production-branch main
-npx wrangler pages deploy dist --project-name dahodo-trading-journal --branch main
+npx wrangler pages project create trading-journal --production-branch master
+npx wrangler pages deploy dist --project-name trading-journal --branch master
 ```
 
 After the first deployment, add `journal.dahodo.com` in Cloudflare Pages → Custom domains, or connect the project to the GitHub repo and set the custom domain in Pages settings.

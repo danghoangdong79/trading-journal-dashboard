@@ -1,5 +1,5 @@
-export type TradeStatus = 'Thắng' | 'Thua' | 'Hòa' | 'Đang mở';
-export type AssetType = 'Cổ phiếu' | 'Phái sinh';
+export type TradeStatus = 'Tháº¯ng' | 'Thua' | 'HÃ²a' | 'Äang má»';
+export type AssetType = 'Cá» phiáº¿u' | 'PhÃ¡i sinh';
 export type PositionType = 'LONG' | 'SHORT';
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -7,6 +7,7 @@ export interface Trade {
   rowNumber: number;
   status: TradeStatus;
   account: string;
+  orderId: string;
   assetType: AssetType;
   symbol: string;
   position: PositionType;
@@ -45,7 +46,9 @@ export interface FeeCharge {
 }
 
 export interface TradingStats {
+  initialCapital: number;
   netPnL: number;
+  cashFlowNet: number;
   currentBalance: number;
   totalTrades: number;
   winRate: number;
@@ -100,7 +103,7 @@ export interface SheetRuntimeConfig {
   minRewardRisk: number;
 }
 
-export type MetricKey = 'netPnL' | 'currentBalance' | 'totalTrades' | 'expectancy' | 'feeCharges';
+export type MetricKey = 'netPnL' | 'cashFlowNet' | 'currentBalance' | 'totalTrades' | 'expectancy';
 
 export interface MetricSettings {
   visible: Record<MetricKey, boolean>;

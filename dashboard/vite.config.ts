@@ -6,9 +6,9 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 
 const DEFAULT_SHEET_ID = '1PdCmBoBQsznOx6JXvOlbD-atxQnX9wHRXiM127f109I';
-const SHEET_RANGE = 'JOURNAL!A1:X2000';
+const SHEET_RANGE = 'JOURNAL!A1:Y2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
-const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:L2000';
+const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:N2000';
 const CONFIG_RISK_RANGE = 'CONFIG!G3:G7';
 const USERS_RANGE = 'USERS!A1:G500';
 const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
@@ -140,6 +140,21 @@ function normalizePosition(value: unknown) {
   return normalizeText(value) === 'short' ? 'SHORT' : 'LONG';
 }
 
+function headerIndex(headers: unknown[], candidates: string[], fallback: number) {
+  const normalizedHeaders = headers.map((header) => normalizeText(header));
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeText(candidate);
+    const index = normalizedHeaders.findIndex((header) => header === normalizedCandidate || header.includes(normalizedCandidate));
+    if (index >= 0) return index;
+  }
+  return fallback;
+}
+
+function isCashOutflow(type: unknown, note: unknown) {
+  const normalized = normalizeText(`${type ?? ''} ${note ?? ''}`);
+  return normalized.includes('rut') || normalized.includes('withdraw') || normalized.includes('outflow') || normalized.includes('chi tien');
+}
+
 function getDateKey(value: string) {
   const date = parseDateTime(value, '00:00');
   if (!date) return '';
@@ -148,16 +163,20 @@ function getDateKey(value: string) {
 
 function mapCashFlows(values: unknown[][]): CashFlowEvent[] {
   const map: Record<string, number> = {};
+  const headers = Array.isArray(values[0]) ? values[0] : [];
+  const dateIndex = headerIndex(headers, ['ngay', 'date'], 0);
+  const typeIndex = headerIndex(headers, ['loai', 'type'], 2);
+  const amountIndex = headerIndex(headers, ['so tien', 'amount', 'gia tri'], 3);
+  const noteIndex = headerIndex(headers, ['ghi chu', 'note', 'noi dung'], 4);
 
   values.slice(1).forEach((row) => {
-    const key = getDateKey(formatDateCell(row[0]));
+    if (!Array.isArray(row) || !row.some((cell) => String(cell ?? '').trim() !== '')) return;
+    const key = getDateKey(formatDateCell(row[dateIndex]));
     if (!key) return;
-
-    const type = normalizeText(row[2]);
-    const amount = Math.abs(parseNumber(row[3]));
+    const amount = Math.abs(parseNumber(row[amountIndex]));
     if (!amount) return;
-
-    map[key] = (map[key] || 0) + (type.includes('rut') ? -amount : amount);
+    const signedAmount = isCashOutflow(row[typeIndex], row[noteIndex]) ? -amount : amount;
+    map[key] = (map[key] || 0) + signedAmount;
   });
 
   return Object.entries(map)
@@ -174,7 +193,7 @@ function mapFeeCharges(values: unknown[][]) {
       account: String(row[2] || '').trim(),
       category: String(row[4] || 'Phí định kỳ').trim(),
       amount: Math.abs(parseNumber(row[11] ?? row[10] ?? row[9])),
-      note: [String(row[3] || '').trim(), String(row[1] || '').trim()].filter(Boolean).join(' · '),
+      note: [String(row[3] || '').trim(), String(row[1] || '').trim(), String(row[13] || '').trim()].filter(Boolean).join(' · '),
     }))
     .filter((charge) => charge.amount > 0 && charge.date);
 }
@@ -244,11 +263,11 @@ function mapRows(values: unknown[][], cashFlows: CashFlowEvent[] = [], initialCa
     .slice(1)
     .filter((row) => row.some((cell) => String(cell ?? '').trim() !== ''))
     .map((row, index) => {
-      const netPnL = parseNumber(row[20]);
-      const openDate = formatDateCell(row[7]);
-      const openTime = formatTimeCell(row[8]);
-      const closeDate = formatDateCell(row[9]);
-      const closeTime = formatTimeCell(row[10]);
+      const netPnL = parseNumber(row[21]);
+      const openDate = formatDateCell(row[8]);
+      const openTime = formatTimeCell(row[9]);
+      const closeDate = formatDateCell(row[10]);
+      const closeTime = formatTimeCell(row[11]);
       const tradeKey = getDateKey(closeDate || openDate);
       let cashFlow = 0;
 
@@ -263,28 +282,29 @@ function mapRows(values: unknown[][], cashFlows: CashFlowEvent[] = [], initialCa
         rowNumber: index + 2,
         status: normalizeStatus(row[0]),
         account: String(row[1] || '').trim(),
-        assetType: normalizeAssetType(row[2]),
-        symbol: String(row[3] || '').trim(),
-        position: normalizePosition(row[4]),
-        orderType: String(row[5] || '').trim(),
-        strategy: String(row[6] || '').trim(),
+        orderId: String(row[2] || '').trim(),
+        assetType: normalizeAssetType(row[3]),
+        symbol: String(row[4] || '').trim(),
+        position: normalizePosition(row[5]),
+        orderType: String(row[6] || '').trim(),
+        strategy: String(row[7] || '').trim(),
         openDate,
         openTime,
         closeDate,
         closeTime,
-        holdingDays: parseNumber(row[11]),
-        volume: parseNumber(row[12]),
-        entryPrice: parseNumber(row[13]),
-        exitPrice: parseNumber(row[14]),
-        stopLoss: parseNumber(row[15]),
-        takeProfit: parseNumber(row[16]),
-        amplitude: parseNumber(row[17]),
-        grossPnL: parseNumber(row[18]),
-        feesAndTaxes: parseNumber(row[19]),
+        holdingDays: parseNumber(row[12]),
+        volume: parseNumber(row[13]),
+        entryPrice: parseNumber(row[14]),
+        exitPrice: parseNumber(row[15]),
+        stopLoss: parseNumber(row[16]),
+        takeProfit: parseNumber(row[17]),
+        feesAndTaxes: parseNumber(row[18]),
+        amplitude: parseNumber(row[19]),
+        grossPnL: parseNumber(row[20]),
         netPnL,
-        mood: String(row[21] || '').trim(),
-        reviewNote: String(row[22] || '').trim(),
-        sector: String(row[23] || '').trim(),
+        mood: String(row[22] || '').trim(),
+        reviewNote: String(row[23] || '').trim(),
+        sector: String(row[24] || '').trim(),
         entryDateTime: parseDateTime(openDate, openTime),
         exitDateTime: parseDateTime(closeDate, closeTime),
         cashFlow,
@@ -293,10 +313,13 @@ function mapRows(values: unknown[][], cashFlows: CashFlowEvent[] = [], initialCa
     });
 
   const trailingCashFlow = cashFlows.slice(cashFlowIndex).reduce((sum, item) => sum + item.amount, 0);
-  if (trailingCashFlow && trades.length > 0) {
-    const lastTrade = trades[trades.length - 1];
-    lastTrade.cashFlow += trailingCashFlow;
-    lastTrade.equity += trailingCashFlow;
+  if (trailingCashFlow) {
+    runningEquity += trailingCashFlow;
+    if (trades.length > 0) {
+      const lastTrade = trades[trades.length - 1];
+      lastTrade.cashFlow += trailingCashFlow;
+      lastTrade.equity = runningEquity;
+    }
   }
 
   return trades;

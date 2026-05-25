@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= appName ?></title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #07111f;
+        --card: rgba(15, 23, 42, 0.86);
+        --line: rgba(148, 163, 184, 0.18);
+        --text: #e5edf8;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --win: #34d399;
+        --loss: #fb7185;
+        --warn: #fbbf24;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 34%), var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .shell { max-width: 1180px; margin: 0 auto; padding: 24px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+      .brand { display: flex; flex-direction: column; gap: 4px; }
+      .brand h1 { margin: 0; font-size: clamp(24px, 4vw, 42px); letter-spacing: -0.04em; }
+      .brand span, .caption { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; }
+      .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+      button, input {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.72);
+        color: var(--text);
+        padding: 10px 12px;
+        font: inherit;
+      }
+      button { cursor: pointer; font-weight: 800; }
+      button.primary { background: linear-gradient(135deg, #0ea5e9, #14b8a6); border: 0; }
+      button:disabled { opacity: 0.55; cursor: wait; }
+      input { min-width: min(520px, 100%); }
+      .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+      .card { border: 1px solid var(--line); border-radius: 20px; background: var(--card); padding: 18px; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.2); }
+      .kpi .label { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.12em; }
+      .kpi .value { margin-top: 10px; font-size: 26px; font-weight: 900; letter-spacing: -0.04em; }
+      .kpi .sub { margin-top: 6px; color: var(--muted); font-size: 12px; }
+      .positive { color: var(--win); }
+      .negative { color: var(--loss); }
+      .main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr); gap: 14px; margin-top: 14px; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+      th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; }
+      .table-wrap { overflow-x: auto; }
+      .pill { display: inline-flex; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 800; background: rgba(148, 163, 184, 0.1); }
+      .status-win { color: var(--win); }
+      .status-loss { color: var(--loss); }
+      .status-open { color: var(--accent); }
+      .notice { margin: 12px 0; color: var(--warn); font-size: 13px; font-weight: 700; }
+      .bars { display: grid; gap: 10px; }
+      .bar-row { display: grid; gap: 6px; }
+      .bar-label { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+      .bar-bg { height: 10px; border-radius: 999px; background: rgba(148, 163, 184, 0.12); overflow: hidden; }
+      .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #14b8a6); }
+      @media (max-width: 860px) {
+        .topbar, .main { grid-template-columns: 1fr; display: grid; }
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .actions { justify-content: stretch; }
+      }
+      @media (max-width: 540px) {
+        .shell { padding: 16px; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span>Google Apps Script Edition</span>
+          <h1>Dahodo Journal</h1>
+          <div class="caption" id="syncText">Chưa tải dữ liệu</div>
+        </div>
+        <div class="actions">
+          <input id="sheetId" value="<?= defaultSheetId ?>" aria-label="Google Sheet ID">
+          <button id="refreshBtn" class="primary" onclick="loadData(true)">Tải lại dữ liệu</button>
+        </div>
+      </header>
+
+      <div id="notice" class="notice"></div>
+
+      <section class="grid">
+        <div class="card kpi"><div class="label">Lãi/Lỗ ròng</div><div id="netPnL" class="value">—</div><div id="totalTrades" class="sub">—</div></div>
+        <div class="card kpi"><div class="label">Số dư hiện tại</div><div id="balance" class="value">—</div><div class="sub">Theo equity sau lệnh mới nhất</div></div>
+        <div class="card kpi"><div class="label">Tỉ lệ thắng</div><div id="winRate" class="value">—</div><div id="winLoss" class="sub">—</div></div>
+        <div class="card kpi"><div class="label">Phí định kỳ</div><div id="fees" class="value">—</div><div class="sub">FEE_CHARGES</div></div>
+      </section>
+
+      <section class="main">
+        <div class="card">
+          <div class="caption">Giao dịch gần nhất</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Trạng thái</th><th>Mã</th><th>Vị thế</th><th>Ngày</th><th>KL</th><th>Lãi/Lỗ</th></tr></thead>
+              <tbody id="tradeRows"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="caption">PnL theo chiến lược</div>
+          <div id="strategyBars" class="bars"></div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const state = { data: null, loading: false };
+
+      function currency(value) {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
+      }
+
+      function percent(value) {
+        return new Intl.NumberFormat('vi-VN', { style: 'percent', maximumFractionDigits: 1 }).format(Number(value || 0));
+      }
+
+      function summarize(trades) {
+        const closed = trades.filter(t => t.status !== 'Đang mở');
+        const wins = closed.filter(t => t.status === 'Thắng' || (t.status !== 'Thua' && t.status !== 'Hòa' && t.netPnL > 0));
+        const losses = closed.filter(t => t.status === 'Thua' || (t.status !== 'Thắng' && t.status !== 'Hòa' && t.netPnL < 0));
+        const netPnL = trades.reduce((sum, trade) => sum + Number(trade.netPnL || 0), 0);
+        return {
+          netPnL,
+          closed: closed.length,
+          wins: wins.length,
+          losses: losses.length,
+          winRate: closed.length ? wins.length / closed.length : 0,
+          balance: trades.length ? trades[trades.length - 1].equity : 0,
+        };
+      }
+
+      function statusClass(status) {
+        if (status === 'Thắng') return 'status-win';
+        if (status === 'Thua') return 'status-loss';
+        return 'status-open';
+      }
+
+      function groupStrategy(trades) {
+        const map = {};
+        trades.forEach(trade => {
+          const key = trade.strategy || 'Không xác định';
+          if (!map[key]) map[key] = { name: key, pnl: 0, trades: 0 };
+          map[key].pnl += Number(trade.netPnL || 0);
+          map[key].trades += 1;
+        });
+        return Object.values(map).sort((a, b) => b.pnl - a.pnl);
+      }
+
+      function render(data) {
+        state.data = data;
+        const trades = Array.isArray(data.trades) ? data.trades : [];
+        const fees = Array.isArray(data.feeCharges) ? data.feeCharges : [];
+        const stats = summarize(trades);
+
+        document.getElementById('netPnL').textContent = currency(stats.netPnL);
+        document.getElementById('netPnL').className = 'value ' + (stats.netPnL >= 0 ? 'positive' : 'negative');
+        document.getElementById('totalTrades').textContent = stats.closed + ' lệnh đã đóng · tổng ' + trades.length + ' dòng';
+        document.getElementById('balance').textContent = currency(stats.balance);
+        document.getElementById('winRate').textContent = percent(stats.winRate);
+        document.getElementById('winLoss').textContent = stats.wins + ' thắng / ' + stats.losses + ' thua';
+        document.getElementById('fees').textContent = currency(fees.reduce((sum, item) => sum + Number(item.amount || 0), 0));
+        document.getElementById('syncText').textContent = 'Nguồn: ' + (data.source || 'Apps Script') + ' · ' + new Date(data.fetchedAt || Date.now()).toLocaleString('vi-VN') + (data.cached ? ' · cache' : ' · live');
+
+        document.getElementById('tradeRows').innerHTML = trades.slice(-10).reverse().map(trade => `
+          <tr>
+            <td><span class="pill ${statusClass(trade.status)}">${trade.status}</span></td>
+            <td><strong>${trade.symbol || '—'}</strong><div class="caption">${trade.assetType || ''}</div></td>
+            <td>${trade.position || '—'}</td>
+            <td>${trade.closeDate || trade.openDate || '—'}</td>
+            <td>${Number(trade.volume || 0).toLocaleString('vi-VN')}</td>
+            <td class="${Number(trade.netPnL || 0) >= 0 ? 'positive' : 'negative'}"><strong>${currency(trade.netPnL)}</strong></td>
+          </tr>
+        `).join('') || '<tr><td colspan="6">Chưa có giao dịch</td></tr>';
+
+        const groups = groupStrategy(trades);
+        const max = Math.max(1, ...groups.map(item => Math.abs(item.pnl)));
+        document.getElementById('strategyBars').innerHTML = groups.map(item => `
+          <div class="bar-row">
+            <div class="bar-label"><span>${item.name}</span><strong class="${item.pnl >= 0 ? 'positive' : 'negative'}">${currency(item.pnl)}</strong></div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${Math.max(4, Math.round(Math.abs(item.pnl) / max * 100))}%"></div></div>
+            <div class="caption">${item.trades} lệnh</div>
+          </div>
+        `).join('') || '<div class="caption">Chưa có chiến lược</div>';
+      }
+
+      function setLoading(value) {
+        state.loading = value;
+        document.getElementById('refreshBtn').disabled = value;
+        document.getElementById('refreshBtn').textContent = value ? 'Đang tải...' : 'Tải lại dữ liệu';
+      }
+
+      function loadData(force) {
+        setLoading(true);
+        document.getElementById('notice').textContent = '';
+        const sheetId = document.getElementById('sheetId').value.trim();
+        const runner = google.script.run
+          .withSuccessHandler(data => {
+            setLoading(false);
+            if (!data || data.ok === false) {
+              document.getElementById('notice').textContent = data && data.error ? data.error : 'Không đọc được dữ liệu.';
+              return;
+            }
+            render(data);
+          })
+          .withFailureHandler(error => {
+            setLoading(false);
+            document.getElementById('notice').textContent = error && error.message ? error.message : String(error);
+          });
+
+        if (force) runner.refreshBootstrapData(sheetId);
+        else runner.getBootstrapData(sheetId);
+      }
+
+      document.addEventListener('DOMContentLoaded', () => loadData(false));
+    </script>
+  </body>
+</html>

@@ -108,7 +108,7 @@ export default function Calendar() {
   const winRateMonth = monthSummary.closedTrades ? monthSummary.winningTrades / monthSummary.closedTrades : 0;
   const activeStreak = monthItems.reduce((best, item) => (item.pnl > 0 && best >= 0 ? best + 1 : item.pnl > 0 ? 1 : 0), 0);
   const monthMomentum = monthPnl >= 0 ? 'Đang đi lên' : 'Đang hồi phục';
-  const monthSheetUrl = buildSheetUrl(settings.sheetId, 'JOURNAL!A1:X2000', settings.journalGid, settings.configGid);
+  const monthSheetUrl = buildSheetUrl(settings.sheetId, 'JOURNAL!A1:Y2000', settings.journalGid, settings.configGid);
   const getTradeSheetUrl = (rowNumber: number) => buildJournalRowUrl(settings.sheetId, rowNumber, settings.journalGid);
 
   const moveMonth = (offset: number) => {

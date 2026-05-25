@@ -3,9 +3,9 @@ import cors from 'cors';
 import express from 'express';
 import { GoogleAuth } from 'google-auth-library';
 
-const SHEET_RANGE = 'JOURNAL!A1:X2000';
+const SHEET_RANGE = 'JOURNAL!A1:Y2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
-const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:L2000';
+const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:N2000';
 const CONFIG_RISK_RANGE = 'CONFIG!G3:G7';
 const USERS_RANGE = 'USERS!A1:G500';
 const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
@@ -109,11 +109,11 @@ function parseDateTime(dateStr, timeStr) {
 
 function normalizeStatus(value) {
     const normalized = normalizeText(value);
-    if (normalized === 'thang') return 'Thắng';
+    if (normalized === 'thĐang') return 'Thắng';
     if (normalized === 'thua') return 'Thua';
     if (normalized === 'hoa') return 'Hòa';
-    if (normalized === 'dang mo') return 'Đang mở';
-    return 'Đang mở';
+    if (normalized === 'dĐang mo') return 'ĐĐang mở';
+    return 'ĐĐang mở';
 }
 
 function normalizeAssetType(value) {
@@ -124,6 +124,21 @@ function normalizePosition(value) {
     return normalizeText(value) === 'short' ? 'SHORT' : 'LONG';
 }
 
+function headerIndex(headers, candidates, fallback) {
+    const normalizedHeaders = headers.map((header) => normalizeText(header));
+    for (const candidate of candidates) {
+        const normalizedCandidate = normalizeText(candidate);
+        const index = normalizedHeaders.findIndex((header) => header === normalizedCandidate || header.includes(normalizedCandidate));
+        if (index >= 0) return index;
+    }
+    return fallback;
+}
+
+function isCashOutflow(type, note) {
+    const normalized = normalizeText(`${type ?? ''} ${note ?? ''}`);
+    return normalized.includes('rut') || normalized.includes('withdraw') || normalized.includes('outflow') || normalized.includes('chi tien');
+}
+
 function getDateKey(value) {
     const date = parseDateTime(value, '00:00');
     if (!date) return '';
@@ -132,13 +147,20 @@ function getDateKey(value) {
 
 function mapCashFlows(values = []) {
     const map = {};
+    const headers = Array.isArray(values[0]) ? values[0] : [];
+    const dateIndex = headerIndex(headers, ['ngay', 'date'], 0);
+    const typeIndex = headerIndex(headers, ['loai', 'type'], 2);
+    const amountIndex = headerIndex(headers, ['so tien', 'amount', 'gia tri'], 3);
+    const noteIndex = headerIndex(headers, ['ghi chu', 'note', 'noi dung'], 4);
+
     values.slice(1).forEach((row) => {
-        const key = getDateKey(formatDateCell(row[0]));
+        if (!Array.isArray(row) || !row.some((cell) => String(cell ?? '').trim() !== '')) return;
+        const key = getDateKey(formatDateCell(row[dateIndex]));
         if (!key) return;
-        const type = normalizeText(row[2]);
-        const amount = Math.abs(parseNumber(row[3]));
+        const amount = Math.abs(parseNumber(row[amountIndex]));
         if (!amount) return;
-        map[key] = (map[key] || 0) + (type.includes('rut') ? -amount : amount);
+        const signedAmount = isCashOutflow(row[typeIndex], row[noteIndex]) ? -amount : amount;
+        map[key] = (map[key] || 0) + signedAmount;
     });
     return Object.entries(map)
         .map(([key, amount]) => ({ key, amount }))
@@ -152,9 +174,9 @@ function mapFeeCharges(values = []) {
             rowNumber: index + 2,
             date: formatDateCell(row[0]),
             account: String(row[2] || '').trim(),
-            category: String(row[4] || 'Phí định kỳ').trim(),
+            category: String(row[4] || 'Phí d?nh k?').trim(),
             amount: Math.abs(parseNumber(row[11] ?? row[10] ?? row[9])),
-            note: [String(row[3] || '').trim(), String(row[1] || '').trim()].filter(Boolean).join(' · '),
+            note: [String(row[3] || '').trim(), String(row[1] || '').trim(), String(row[13] || '').trim()].filter(Boolean).join(' · '),
         }))
         .filter((charge) => charge.amount > 0 && charge.date);
 }
@@ -225,11 +247,11 @@ function mapRows(values = [], cashFlows = [], initialCapital = FALLBACK_INITIAL_
         .slice(1)
         .filter((row) => row.some((cell) => String(cell ?? '').trim() !== ''))
         .map((row, index) => {
-            const netPnL = parseNumber(row[20]);
-            const openDate = formatDateCell(row[7]);
-            const openTime = formatTimeCell(row[8]);
-            const closeDate = formatDateCell(row[9]);
-            const closeTime = formatTimeCell(row[10]);
+            const netPnL = parseNumber(row[21]);
+            const openDate = formatDateCell(row[8]);
+            const openTime = formatTimeCell(row[9]);
+            const closeDate = formatDateCell(row[10]);
+            const closeTime = formatTimeCell(row[11]);
             const tradeKey = getDateKey(closeDate || openDate);
             let cashFlow = 0;
 
@@ -244,28 +266,29 @@ function mapRows(values = [], cashFlows = [], initialCapital = FALLBACK_INITIAL_
                 rowNumber: index + 2,
                 status: normalizeStatus(row[0]),
                 account: String(row[1] || '').trim(),
-                assetType: normalizeAssetType(row[2]),
-                symbol: String(row[3] || '').trim(),
-                position: normalizePosition(row[4]),
-                orderType: String(row[5] || '').trim(),
-                strategy: String(row[6] || '').trim(),
+                orderId: String(row[2] || '').trim(),
+                assetType: normalizeAssetType(row[3]),
+                symbol: String(row[4] || '').trim(),
+                position: normalizePosition(row[5]),
+                orderType: String(row[6] || '').trim(),
+                strategy: String(row[7] || '').trim(),
                 openDate,
                 openTime,
                 closeDate,
                 closeTime,
-                holdingDays: parseNumber(row[11]),
-                volume: parseNumber(row[12]),
-                entryPrice: parseNumber(row[13]),
-                exitPrice: parseNumber(row[14]),
-                stopLoss: parseNumber(row[15]),
-                takeProfit: parseNumber(row[16]),
-                amplitude: parseNumber(row[17]),
-                grossPnL: parseNumber(row[18]),
-                feesAndTaxes: parseNumber(row[19]),
+                holdingDays: parseNumber(row[12]),
+                volume: parseNumber(row[13]),
+                entryPrice: parseNumber(row[14]),
+                exitPrice: parseNumber(row[15]),
+                stopLoss: parseNumber(row[16]),
+                takeProfit: parseNumber(row[17]),
+                feesAndTaxes: parseNumber(row[18]),
+                amplitude: parseNumber(row[19]),
+                grossPnL: parseNumber(row[20]),
                 netPnL,
-                mood: String(row[21] || '').trim(),
-                reviewNote: String(row[22] || '').trim(),
-                sector: String(row[23] || '').trim(),
+                mood: String(row[22] || '').trim(),
+                reviewNote: String(row[23] || '').trim(),
+                sector: String(row[24] || '').trim(),
                 entryDateTime: parseDateTime(openDate, openTime),
                 exitDateTime: parseDateTime(closeDate, closeTime),
                 cashFlow,
@@ -274,10 +297,13 @@ function mapRows(values = [], cashFlows = [], initialCapital = FALLBACK_INITIAL_
         });
 
     const trailingCashFlow = cashFlows.slice(cashFlowIndex).reduce((sum, item) => sum + item.amount, 0);
-    if (trailingCashFlow && trades.length > 0) {
-        const lastTrade = trades[trades.length - 1];
-        lastTrade.cashFlow += trailingCashFlow;
-        lastTrade.equity += trailingCashFlow;
+    if (trailingCashFlow) {
+        runningEquity += trailingCashFlow;
+        if (trades.length > 0) {
+            const lastTrade = trades[trades.length - 1];
+            lastTrade.cashFlow += trailingCashFlow;
+            lastTrade.equity = runningEquity;
+        }
     }
 
     return trades;
@@ -288,20 +314,20 @@ function loadCredentials() {
     return undefined;
 }
 
-async function fetchSheetValues(auth, sheetId, range) {
+async function fetchSheetValues(auth, sheetId, rĐange) {
     const client = await auth.getClient();
     const token = await client.getAccessToken();
-    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?${GOOGLE_SHEETS_VALUE_PARAMS}`, {
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(rĐange)}?${GOOGLE_SHEETS_VALUE_PARAMS}`, {
         headers: { Authorization: `Bearer ${token.token || token}` },
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data?.error?.message || `Cannot read range ${range}`);
+    if (!response.ok) throw new Error(data?.error?.message || `Cannot read rĐange ${rĐange}`);
     return Array.isArray(data.values) ? data.values : [];
 }
 
 async function fetchAvailableAccounts(auth, sheetId) {
-    for (const range of ACCOUNT_LIST_RANGES) {
-        const values = await fetchSheetValues(auth, sheetId, range).catch(() => []);
+    for (const rĐange of ACCOUNT_LIST_RANGES) {
+        const values = await fetchSheetValues(auth, sheetId, rĐange).catch(() => []);
         const accounts = mapAvailableAccounts(values);
         if (accounts.length > 0) return accounts;
     }

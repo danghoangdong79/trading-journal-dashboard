@@ -1,0 +1,16 @@
+{
+  "name": "dahodo-journal-telegram-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "register-webhook": "node scripts/register-webhook.js"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250514.0",
+    "wrangler": "^4.19.0",
+    "typescript": "^5.8.2"
+  }
+}

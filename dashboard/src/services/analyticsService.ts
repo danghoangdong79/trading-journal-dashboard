@@ -77,7 +77,10 @@ export class AnalyticsService {
 
   static calculateStats(trades: Trade[]): TradingStats {
     const summary = this.summarizeTrades(trades);
-    const currentBalance = trades.length > 0 ? trades[trades.length - 1].equity : 0;
+    const cashFlowNet = trades.reduce((sum, trade) => sum + trade.cashFlow, 0);
+    const firstTrade = trades[0] || null;
+    const initialCapital = firstTrade ? firstTrade.equity - firstTrade.cashFlow - firstTrade.netPnL : 0;
+    const currentBalance = initialCapital + summary.netPnL + cashFlowNet;
 
     let maxDrawdown = 0;
     let peak = 0;
@@ -89,7 +92,9 @@ export class AnalyticsService {
     });
 
     return {
+      initialCapital,
       netPnL: summary.netPnL,
+      cashFlowNet,
       currentBalance,
       totalTrades: summary.closedTrades,
       winRate: summary.winRate,

@@ -41,7 +41,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: Table2,
                 title: '1. Điền đúng cột JOURNAL',
                 detail: 'Sheet chính dùng 24 cột từ A đến X. Webapp đọc trực tiếp các cột này.',
-                sheetRange: 'JOURNAL!A1:X2000',
+                sheetRange: 'JOURNAL!A1:Y2000',
                 bullets: [
                     'Các cột quan trọng nhất: Status, Account, Asset, Symbol, Side, Strategy, ngày giờ vào/ra, PnL, Mood, Review Note.',
                     'Account là tài khoản giao dịch thực tế như D920568, T271298, T271299.',
@@ -54,7 +54,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: BookOpen,
                 title: '2. Ô tối thiểu phải điền khi nhập lệnh mới',
                 detail: 'Khi đã nhập mã giao dịch, nên hoàn tất các ô tối thiểu để dashboard đọc đúng và sheet tự báo thiếu dữ liệu.',
-                sheetRange: 'JOURNAL!A1:X2000',
+                sheetRange: 'JOURNAL!A1:Y2000',
                 bullets: [
                     'Tối thiểu để mở lệnh: Tài khoản, Tài sản, Mã giao dịch, Vị thế, Ngày mở, Giờ mở, Khối lượng, Giá vào.',
                     'Nếu chốt lệnh thì bổ sung thêm: Ngày đóng, Giờ đóng và Giá đóng.',
@@ -67,7 +67,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: Palette,
                 title: '3. Quy ước màu để nhìn nhanh',
                 detail: 'Sheet đã có màu để nhận biết trạng thái và nhắc ô còn thiếu, nên chỉ cần nhìn là biết cần điền gì tiếp.',
-                sheetRange: 'JOURNAL!A1:X2000',
+                sheetRange: 'JOURNAL!A1:Y2000',
                 bullets: [
                     'Xanh lá: lệnh thắng, LONG hoặc Net PnL dương.',
                     'Đỏ: lệnh thua, SHORT hoặc Net PnL âm.',
@@ -81,7 +81,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: CircleHelp,
                 title: '4. Các thuật ngữ hay gặp',
                 detail: 'Một số từ dễ nhầm khi mới dùng nhật ký.',
-                sheetRange: 'JOURNAL!A1:X2000',
+                sheetRange: 'JOURNAL!A1:Y2000',
                 bullets: [
                     'Gross PnL: lãi/lỗ gộp trước phí.',
                     'Fees & Taxes: phí giao dịch và thuế.',
@@ -100,7 +100,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: ReceiptText,
                 title: '1. Fee là gì',
                 detail: 'Là phí định kỳ, phí dịch vụ, lãi vay, chi phí tài khoản... không nằm trong từng lệnh.',
-                sheetRange: 'FEE_CHARGES!A1:L2000',
+                sheetRange: 'JOURNAL!S1:S2000',
                 bullets: [
                     'Ví dụ: phí nền tảng, phí dữ liệu, phí margin, phí SMS, phí quản lý tài khoản.',
                     'Nếu chi phí đã nằm trực tiếp trong từng lệnh thì không nhập lại ở đây để tránh cộng trùng.',
@@ -110,7 +110,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: ReceiptText,
                 title: '2. Cách nhập fee',
                 detail: 'Mỗi khoản phí là 1 dòng riêng để dễ dò soát và lọc theo thời gian hoặc tài khoản.',
-                sheetRange: 'FEE_CHARGES!A1:L2000',
+                sheetRange: 'JOURNAL!S1:S2000',
                 bullets: [
                     'Date: ngày phát sinh phí.',
                     'Account: tài khoản chịu phí.',
@@ -123,7 +123,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: ReceiptText,
                 title: '3. Dashboard đọc fee thế nào',
                 detail: 'Dashboard cộng toàn bộ amount trong FEE_CHARGES thành tổng phí định kỳ.',
-                sheetRange: 'FEE_CHARGES!A1:L2000',
+                sheetRange: 'JOURNAL!S1:S2000',
                 bullets: [
                     'Overview: nhìn nhanh tổng chi phí vận hành.',
                     'Analytics: so PnL nhóm với chi phí ngoài lệnh.',
@@ -176,7 +176,7 @@ const GUIDE_CONTENT: Record<GuideTab, { title: string; desc: string; items: { ic
                 icon: Settings,
                 title: '2. Làm mới dữ liệu',
                 detail: 'Nếu thấy số cũ, bấm refresh hoặc reload page.',
-                sheetRange: 'JOURNAL!A1:X2000',
+                sheetRange: 'JOURNAL!A1:Y2000',
                 bullets: [
                     'Sau khi sửa Sheet, đôi lúc cần refresh để dashboard đọc lại.',
                     'Nếu vẫn không thấy dữ liệu mới, kiểm tra lại Sheet ID, API Key hoặc server proxy.',

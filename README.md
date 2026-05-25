@@ -6,7 +6,7 @@ Trading journal cho phai sinh VN30F va co phieu Viet Nam. Google Sheets la data 
 
 - Tab du lieu chinh: `JOURNAL`.
 - Layout chuan: Ocean 24 cot, khop voi Google Sheet that.
-- Dashboard doc truc tiep `JOURNAL!A1:X2000` qua Google Sheets API key va fallback ve demo neu chua cau hinh.
+- Dashboard doc truc tiep `JOURNAL!A1:Y2000` qua Google Sheets API key va fallback ve demo neu chua cau hinh.
 - Tabs chinh tren sheet that: `CONFIG`, `SETUP`, `FORMULAS`, `JOURNAL`, `SUMMARY`.
 
 ## Cau truc repo

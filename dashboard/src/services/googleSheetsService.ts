@@ -2,9 +2,9 @@ import type { Trade, TradeStatus, AssetType, PositionType, FeeCharge, SheetUser 
 
 import type { SheetRuntimeConfig } from '../types.ts';
 
-const SHEET_RANGE = 'JOURNAL!A1:X2000';
+const SHEET_RANGE = 'JOURNAL!A1:Y2000';
 const CASHFLOW_RANGE = 'CASHFLOW!A1:E2000';
-const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:L2000';
+const FEE_CHARGES_RANGE = 'FEE_CHARGES!A1:N2000';
 const CONFIG_RISK_RANGE = 'CONFIG!G3:G7';
 const USERS_RANGE = 'USERS!A1:G500';
 const ACCOUNT_LIST_RANGES = ['FORMULAS!I2:I200', 'SETUP!AJ2:AJ200'];
@@ -75,7 +75,7 @@ function parseNumber(value: unknown): number {
   const raw = String(value ?? '').trim();
   if (!raw) return 0;
 
-  const normalized = raw.replace(/\s/g, '').replace(/₫/g, '');
+  const normalized = raw.replace(/\s/g, '').replace(/â‚«/g, '');
   const commaCount = (normalized.match(/,/g) || []).length;
   const dotCount = (normalized.match(/\./g) || []).length;
 
@@ -182,6 +182,21 @@ function normalizePosition(value: unknown): PositionType {
   return normalizeText(value) === 'short' ? 'SHORT' : 'LONG';
 }
 
+function headerIndex(headers: unknown[], candidates: string[], fallback: number) {
+  const normalizedHeaders = headers.map((header) => normalizeText(header));
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeText(candidate);
+    const index = normalizedHeaders.findIndex((header) => header === normalizedCandidate || header.includes(normalizedCandidate));
+    if (index >= 0) return index;
+  }
+  return fallback;
+}
+
+function isCashOutflow(type: unknown, note: unknown) {
+  const normalized = normalizeText(`${type ?? ''} ${note ?? ''}`);
+  return normalized.includes('rut') || normalized.includes('withdraw') || normalized.includes('outflow') || normalized.includes('chi tien');
+}
+
 function getDateKey(value: string) {
   const date = parseDateTime(value, '00:00');
   if (!date) return '';
@@ -190,13 +205,20 @@ function getDateKey(value: string) {
 
 function mapCashFlows(values: unknown[][]): CashFlowEvent[] {
   const map: Record<string, number> = {};
+  const headers = Array.isArray(values[0]) ? values[0] : [];
+  const dateIndex = headerIndex(headers, ['ngay', 'date'], 0);
+  const typeIndex = headerIndex(headers, ['loai', 'type'], 2);
+  const amountIndex = headerIndex(headers, ['so tien', 'amount', 'gia tri'], 3);
+  const noteIndex = headerIndex(headers, ['ghi chu', 'note', 'noi dung'], 4);
+
   values.slice(1).forEach((row) => {
-    const key = getDateKey(formatDateCell(row[0]));
+    if (!Array.isArray(row) || !row.some((cell) => String(cell ?? '').trim() !== '')) return;
+    const key = getDateKey(formatDateCell(row[dateIndex]));
     if (!key) return;
-    const type = normalizeText(row[2]);
-    const amount = Math.abs(parseNumber(row[3]));
+    const amount = Math.abs(parseNumber(row[amountIndex]));
     if (!amount) return;
-    map[key] = (map[key] || 0) + (type.includes('rut') ? -amount : amount);
+    const signedAmount = isCashOutflow(row[typeIndex], row[noteIndex]) ? -amount : amount;
+    map[key] = (map[key] || 0) + signedAmount;
   });
   return Object.entries(map)
     .map(([key, amount]) => ({ key, amount }))
@@ -210,9 +232,9 @@ function mapFeeCharges(values: unknown[][]): FeeCharge[] {
       rowNumber: index + 2,
       date: formatDateCell(row[0]),
       account: String(row[2] || '').trim(),
-      category: String(row[4] || 'Phí định kỳ').trim(),
-      amount: Math.abs(parseNumber(row[11] ?? row[10] ?? row[9])),
-      note: [String(row[3] || '').trim(), String(row[1] || '').trim()].filter(Boolean).join(' · '),
+            category: String(row[4] || 'Phí d?nh k?').trim(),
+            amount: Math.abs(parseNumber(row[11] ?? row[10] ?? row[9])),
+            note: [String(row[3] || '').trim(), String(row[1] || '').trim(), String(row[13] || '').trim()].filter(Boolean).join(' · '),
     }))
     .filter((charge) => charge.amount > 0 && charge.date);
 }
@@ -256,10 +278,10 @@ function mapUsers(values: unknown[][]): SheetUser[] {
       rowNumber: Number.parseInt(String(row[0] || '').trim(), 10) || index + 2,
       username: String(row[1] || '').trim(),
       passwordHash: String(row[2] || '').trim(),
-      role: String(row[3] || '').trim(),
-      displayName: String(row[4] || '').trim(),
-      status: String(row[5] || '').trim(),
-      lastLoginAt: String(row[6] || '').trim(),
+            role: String(row[3] || '').trim(),
+            displayName: String(row[4] || '').trim(),
+            status: String(row[5] || '').trim(),
+            lastLoginAt: String(row[6] || '').trim(),
     }))
     .filter((user) => user.username && user.passwordHash);
 }
@@ -292,12 +314,12 @@ async function fetchProxyDataset(sheetId: string, options: FetchOptions = {}) {
     const response = await fetch(`${apiBaseUrl}/api/trades?sheetId=${encodeURIComponent(cacheKey)}${refreshParam}`);
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
-      throw new Error('Endpoint dữ liệu không trả JSON. Nếu đang chạy trên Cloudflare Pages, hãy nhập API Key hoặc dùng Worker proxy.');
+      throw new Error('Endpoint dá»¯ liá»‡u khÃ´ng tráº£ JSON. Náº¿u Ä‘ang cháº¡y trÃªn Cloudflare Pages, hÃ£y nháº­p API Key hoáº·c dÃ¹ng Worker proxy.');
     }
 
     const data = await response.json() as ProxyDatasetResponse;
     if (!response.ok) {
-      throw new Error(readApiError(data?.error) || 'Không thể đọc dữ liệu Google Sheets.');
+      throw new Error(readApiError(data?.error) || 'KhÃ´ng thá»ƒ Ä‘á»c dá»¯ liá»‡u Google Sheets.');
     }
 
     proxyDatasetCache = {
@@ -333,11 +355,11 @@ function mapRows(rows: unknown[][], cashFlows: CashFlowEvent[], initialCapital =
   const trades = rows
     .filter((row: unknown[]) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== ''))
     .map((row: unknown[], index: number) => {
-      const netPnL = parseNumber(row[20]);
-      const openDate = formatDateCell(row[7]);
-      const openTime = formatTimeCell(row[8]);
-      const closeDate = formatDateCell(row[9]);
-      const closeTime = formatTimeCell(row[10]);
+      const netPnL = parseNumber(row[21]);
+      const openDate = formatDateCell(row[8]);
+      const openTime = formatTimeCell(row[9]);
+      const closeDate = formatDateCell(row[10]);
+      const closeTime = formatTimeCell(row[11]);
       const tradeKey = getDateKey(closeDate || openDate);
       let cashFlow = 0;
 
@@ -352,28 +374,29 @@ function mapRows(rows: unknown[][], cashFlows: CashFlowEvent[], initialCapital =
         rowNumber: index + 2,
         status: normalizeStatus(row[0]),
         account: String(row[1] || '').trim(),
-        assetType: normalizeAssetType(row[2]),
-        symbol: String(row[3] || '').trim(),
-        position: normalizePosition(row[4]),
-        orderType: String(row[5] || '').trim(),
-        strategy: String(row[6] || '').trim(),
+        orderId: String(row[2] || '').trim(),
+        assetType: normalizeAssetType(row[3]),
+        symbol: String(row[4] || '').trim(),
+        position: normalizePosition(row[5]),
+        orderType: String(row[6] || '').trim(),
+        strategy: String(row[7] || '').trim(),
         openDate,
         openTime,
         closeDate,
         closeTime,
-        holdingDays: parseNumber(row[11]),
-        volume: parseNumber(row[12]),
-        entryPrice: parseNumber(row[13]),
-        exitPrice: parseNumber(row[14]),
-        stopLoss: parseNumber(row[15]),
-        takeProfit: parseNumber(row[16]),
-        amplitude: parseNumber(row[17]),
-        grossPnL: parseNumber(row[18]),
-        feesAndTaxes: parseNumber(row[19]),
+        holdingDays: parseNumber(row[12]),
+        volume: parseNumber(row[13]),
+        entryPrice: parseNumber(row[14]),
+        exitPrice: parseNumber(row[15]),
+        stopLoss: parseNumber(row[16]),
+        takeProfit: parseNumber(row[17]),
+        feesAndTaxes: parseNumber(row[18]),
+        amplitude: parseNumber(row[19]),
+        grossPnL: parseNumber(row[20]),
         netPnL,
-        mood: String(row[21] || '').trim(),
-        reviewNote: String(row[22] || '').trim(),
-        sector: String(row[23] || '').trim(),
+        mood: String(row[22] || '').trim(),
+        reviewNote: String(row[23] || '').trim(),
+        sector: String(row[24] || '').trim(),
         entryDateTime: parseDateTime(openDate, openTime),
         exitDateTime: parseDateTime(closeDate, closeTime),
         cashFlow,
@@ -382,10 +405,13 @@ function mapRows(rows: unknown[][], cashFlows: CashFlowEvent[], initialCapital =
     });
 
   const trailingCashFlow = cashFlows.slice(cashFlowIndex).reduce((sum, item) => sum + item.amount, 0);
-  if (trailingCashFlow && trades.length > 0) {
-    const lastTrade = trades[trades.length - 1];
-    lastTrade.cashFlow += trailingCashFlow;
-    lastTrade.equity += trailingCashFlow;
+  if (trailingCashFlow) {
+    runningEquity += trailingCashFlow;
+    if (trades.length > 0) {
+      const lastTrade = trades[trades.length - 1];
+      lastTrade.cashFlow += trailingCashFlow;
+      lastTrade.equity = runningEquity;
+    }
   }
 
   return trades;
@@ -394,7 +420,7 @@ function mapRows(rows: unknown[][], cashFlows: CashFlowEvent[], initialCapital =
 export class GoogleSheetsService {
   static async fetchTrades(sheetId: string, apiKey: string, options: FetchOptions = {}): Promise<Trade[]> {
     if (!sheetId) {
-      throw new Error('Sheet ID là bắt buộc.');
+      throw new Error('Sheet ID lÃ  báº¯t buá»™c.');
     }
 
     const normalizedSheetId = sheetId.trim() || DEFAULT_SHEET_ID;
@@ -404,7 +430,7 @@ export class GoogleSheetsService {
     const canUseBackendProxy = Boolean(apiBaseUrl);
 
     if (!normalizedApiKey && !canUseLocalProxy && !canUseBackendProxy) {
-      throw new Error('Cloudflare Pages không có /api/trades nội bộ. Hãy cấu hình VITE_API_BASE_URL tới VPS API hoặc nhập Google Sheets API Key trong Cài đặt.');
+      throw new Error('Cloudflare Pages khÃ´ng cÃ³ /api/trades ná»™i bá»™. HÃ£y cáº¥u hÃ¬nh VITE_API_BASE_URL tá»›i VPS API hoáº·c nháº­p Google Sheets API Key trong CÃ i Ä‘áº·t.');
     }
 
     const data = normalizedApiKey
@@ -413,12 +439,12 @@ export class GoogleSheetsService {
           const response = await fetch(url);
           const contentType = response.headers.get('content-type') || '';
           if (!contentType.includes('application/json')) {
-            throw new Error('Endpoint dữ liệu không trả JSON. Nếu đang chạy trên Cloudflare Pages, hãy nhập API Key hoặc dùng Worker proxy.');
+            throw new Error('Endpoint dá»¯ liá»‡u khÃ´ng tráº£ JSON. Náº¿u Ä‘ang cháº¡y trÃªn Cloudflare Pages, hÃ£y nháº­p API Key hoáº·c dÃ¹ng Worker proxy.');
           }
 
           const payload = await response.json();
           if (!response.ok) {
-            throw new Error(readApiError(payload?.error) || 'Không thể đọc dữ liệu Google Sheets.');
+            throw new Error(readApiError(payload?.error) || 'KhÃ´ng thá»ƒ Ä‘á»c dá»¯ liá»‡u Google Sheets.');
           }
           return payload as ProxyDatasetResponse;
         })()
@@ -527,7 +553,7 @@ export class GoogleSheetsService {
     const response = await fetch(url);
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(readApiError(data?.error) || 'KhÃ´ng thá»ƒ Ä‘á»c tab USERS tá»« Google Sheets.');
+      throw new Error(readApiError(data?.error) || 'KhÃƒÂ´ng thÃ¡Â»Æ’ Ã„â€˜Ã¡Â»Âc tab USERS tÃ¡Â»Â« Google Sheets.');
     }
     if (!Array.isArray(data.values)) return [];
     return mapUsers(data.values);

@@ -48,11 +48,11 @@ function SettingsPanel({ title, subtitle, children, defaultOpen = false }: { tit
 }
 
 const METRIC_DEFINITIONS: { key: MetricKey; label: string; meaning: string; input: string; source: string }[] = [
-  { key: 'netPnL', label: 'Lãi/Lỗ ròng', meaning: 'Kết quả cuối cùng của các lệnh sau phí và thuế.', input: 'Nhập PnL/fees đúng trong JOURNAL. Dashboard đọc Net PnL để tính.', source: 'JOURNAL!U:U' },
+  { key: 'netPnL', label: 'Lãi/Lỗ ròng', meaning: 'Kết quả cuối cùng của các lệnh sau phí và thuế.', input: 'Nhập PnL/fees đúng trong JOURNAL. Dashboard đọc Net PnL để tính.', source: 'JOURNAL!V:V' },
+  { key: 'cashFlowNet', label: 'Nạp/Rút ròng', meaning: 'Tổng dòng tiền nạp thêm hoặc rút ra đã ghi nhận trong CASHFLOW.', input: 'Nhập ngày, tài khoản, loại Nạp tiền/Rút tiền và số tiền trong CASHFLOW.', source: 'CASHFLOW' },
   { key: 'currentBalance', label: 'Số dư hiện tại', meaning: 'Đường vốn tại giao dịch mới nhất, đã cộng nạp/rút nếu có.', input: 'Nhập JOURNAL theo thời gian và cập nhật CASHFLOW nếu có nạp/rút.', source: 'JOURNAL + CASHFLOW' },
   { key: 'totalTrades', label: 'Tổng số lệnh', meaning: 'Số lệnh đã đóng dùng cho KPI, không tính lệnh đang mở.', input: 'Mỗi lệnh nhập 1 dòng. Status Đang mở không tính vào closed trades.', source: 'JOURNAL!A:A' },
   { key: 'expectancy', label: 'Kỳ vọng/Lệnh', meaning: 'Lãi/lỗ trung bình trên mỗi lệnh đã đóng.', input: 'Cần nhập Net PnL chính xác. Dữ liệu càng đủ mẫu chỉ số càng đáng tin.', source: 'Tính từ JOURNAL' },
-  { key: 'feeCharges', label: 'Phí định kỳ', meaning: 'Tổng chi phí ngoài từng lệnh: phí nền tảng, lãi vay, duy trì...', input: 'Nhập mỗi khoản phí 1 dòng trong FEE_CHARGES, Amount là số dương.', source: 'FEE_CHARGES!A:L' },
 ];
 
 export default function Settings() {
@@ -558,12 +558,12 @@ export default function Settings() {
         </div>
       </SettingsPanel>
 
-      <SettingsPanel title="Phí & thuế giao dịch" subtitle="Giai đoạn 2: quản lý bằng tab FEE_PROFILE theo tài khoản, tài sản và ngày hiệu lực.">
+      <SettingsPanel title="Phí & thuế giao dịch" subtitle="Giai đoạn 2: quản lý bằng tab JOURNAL theo tài khoản, tài sản và ngày hiệu lực.">
         <div className="space-y-3">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
               <p className="type-caption text-[10px]">Nguồn chuẩn</p>
-              <p className="mt-1 text-[13px] font-bold text-foreground">FEE_PROFILE</p>
+              <p className="mt-1 text-[13px] font-bold text-foreground">JOURNAL</p>
             </div>
             <div className="rounded-md bg-[var(--surface-soft)] p-2.5">
               <p className="type-caption text-[10px]">Ưu tiên</p>
@@ -575,7 +575,7 @@ export default function Settings() {
             </div>
           </div>
           <div className="rounded-md border border-[var(--accent)]/10 bg-[var(--accent-soft)] p-3 text-[12px] leading-5 text-[var(--muted)]">
-            Công thức JOURNAL hiện đọc phí cổ phiếu/PS từ FEE_PROFILE. Nếu đổi biểu phí, thêm dòng mới với <b className="text-foreground">Từ ngày</b>; không sửa dữ liệu lịch sử để audit vẫn truy vết được.
+            Công thức JOURNAL hiện đọc phí cổ phiếu/PS từ JOURNAL. Nếu đổi biểu phí, thêm dòng mới với <b className="text-foreground">Từ ngày</b>; không sửa dữ liệu lịch sử để audit vẫn truy vết được.
           </div>
         </div>
       </SettingsPanel>
@@ -646,7 +646,7 @@ export default function Settings() {
             <AlertCircle size={16} className="shrink-0 text-amber-500 mt-0.5" />
             <div className="type-caption text-[11px] leading-relaxed">
               <p className="mb-1 font-bold text-amber-600 dark:text-amber-400">Lưu ý bảo mật:</p>
-              Sheet ID/API Key chỉ được lưu cục bộ trong trình duyệt. Nếu Sheet riêng tư, server cần <code className="font-mono text-foreground">GOOGLE_APPLICATION_CREDENTIALS</code>, <code className="font-mono text-foreground">KHANGHANG_SERVICE_ACCOUNT_PATH</code> hoặc <code className="font-mono text-foreground">GOOGLE_SERVICE_ACCOUNT_JSON</code>. Tab dữ liệu phải là <code className="font-mono text-foreground">JOURNAL</code> và app đọc range <code className="font-mono text-foreground">A1:X2000</code>.
+              Sheet ID/API Key chỉ được lưu cục bộ trong trình duyệt. Nếu Sheet riêng tư, server cần <code className="font-mono text-foreground">GOOGLE_APPLICATION_CREDENTIALS</code>, <code className="font-mono text-foreground">KHANGHANG_SERVICE_ACCOUNT_PATH</code> hoặc <code className="font-mono text-foreground">GOOGLE_SERVICE_ACCOUNT_JSON</code>. Tab dữ liệu phải là <code className="font-mono text-foreground">JOURNAL</code> và app đọc range <code className="font-mono text-foreground">A1:Y2000</code>.
             </div>
           </div>
         </div>

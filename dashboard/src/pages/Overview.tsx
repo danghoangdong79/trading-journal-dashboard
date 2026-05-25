@@ -1,4 +1,4 @@
-﻿import { Database, TrendingUp, Zap, History, Target, ShieldCheck } from 'lucide-react';
+﻿import { ArrowDownUp, Database, TrendingUp, Zap, History, Target } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { MetricKey } from '../types.ts';
 import { useApp } from '../context.tsx';
@@ -24,20 +24,29 @@ const DEFAULT_CUSTOMER_NAME = 'Phương Trần';
 
 export default function Overview() {
   const navigate = useNavigate();
-  const { trades, feeCharges, stats, isLoading, authState, settings } = useApp();
+  const { trades, stats, isLoading, authState, settings } = useApp();
   const [equityMode, setEquityMode] = useState<'trade' | 'day' | 'month' | 'year'>('day');
 
   const equityCurve = useMemo(() => AnalyticsService.getEquityTimeline(trades, equityMode), [trades, equityMode]);
   const profitFactor = Number.isFinite(stats?.profitFactor) ? stats!.profitFactor.toFixed(2) : '0.00';
-  const totalFeeCharges = feeCharges.reduce((sum, item) => sum + item.amount, 0);
+  const capitalBreakdown = [
+    { label: 'Vốn ban đầu', value: stats?.initialCapital || 0, tone: 'neutral' as const },
+    { label: 'Lãi/Lỗ chốt', value: stats?.netPnL || 0, tone: (stats?.netPnL || 0) >= 0 ? 'positive' as const : 'negative' as const },
+    { label: 'Nạp/Rút ròng', value: stats?.cashFlowNet || 0, tone: (stats?.cashFlowNet || 0) >= 0 ? 'positive' as const : 'negative' as const },
+    { label: 'Số dư hiện tại', value: stats?.currentBalance || 0, tone: 'strong' as const },
+  ];
   const metricCards: { key: MetricKey; node: ReactNode }[] = [
     {
       key: 'netPnL',
       node: <KpiCard title="Lãi/Lỗ ròng" value={formatCurrency(stats?.netPnL || 0)} icon={TrendingUp} delta={`${stats?.totalTrades || 0} lệnh đã đóng`} deltaType={(stats?.netPnL || 0) >= 0 ? 'positive' : 'negative'} isLoading={isLoading} description="Tổng lãi/lỗ ròng sau phí và thuế của các giao dịch trong dữ liệu hiện tại." onClick={() => navigate('/journal')} />,
     },
     {
+      key: 'cashFlowNet',
+      node: <KpiCard title="Nạp/Rút ròng" value={formatCurrency(stats?.cashFlowNet || 0)} icon={ArrowDownUp} delta="Từ CASHFLOW" deltaType={(stats?.cashFlowNet || 0) >= 0 ? 'positive' : 'negative'} isLoading={isLoading} description="Tổng dòng tiền nạp/rút đã ghi nhận từ tab CASHFLOW." onClick={() => navigate('/settings')} />,
+    },
+    {
       key: 'currentBalance',
-      node: <KpiCard title="Số dư hiện tại" value={formatCurrency(stats?.currentBalance || 0)} icon={Zap} isLoading={isLoading} description="Giá trị đường vốn tại giao dịch mới nhất, dùng để theo dõi vốn tăng hay giảm theo thời gian." onClick={() => navigate('/calendar')} />,
+      node: <KpiCard title="Số dư hiện tại" value={formatCurrency(stats?.currentBalance || 0)} icon={Zap} isLoading={isLoading} description="Vốn ban đầu + lãi/lỗ chốt + nạp/rút ròng." onClick={() => navigate('/calendar')} />,
     },
     {
       key: 'totalTrades',
@@ -46,10 +55,6 @@ export default function Overview() {
     {
       key: 'expectancy',
       node: <KpiCard title="Kỳ vọng/Lệnh" value={formatCurrency(stats?.expectancy || 0)} icon={Target} isLoading={isLoading} description="Lãi/lỗ trung bình trên mỗi lệnh đã đóng. Chỉ số này cho biết mỗi giao dịch kỳ vọng tạo ra bao nhiêu tiền." onClick={() => navigate('/analytics')} />,
-    },
-    {
-      key: 'feeCharges',
-      node: <KpiCard title="Phí định kỳ" value={formatCurrency(totalFeeCharges)} icon={ShieldCheck} isLoading={isLoading} description="Tổng phí ngoài lệnh đọc từ tab FEE_CHARGES. Dùng để nhìn chi phí vận hành thật." onClick={() => navigate('/guide')} />,
     },
   ];
   const visibleMetricCards = metricCards.filter((item) => settings.metrics.visible[item.key]).sort((left, right) => left.key === settings.metrics.primary ? -1 : right.key === settings.metrics.primary ? 1 : 0);
@@ -72,7 +77,7 @@ export default function Overview() {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.04em] text-[var(--accent)]">
-                  <ShieldCheck size={13} />
+                  <Target size={13} />
                   Dahodo.Journal
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--teal-soft)] px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.04em] text-[var(--accent-2)]">
@@ -132,6 +137,26 @@ export default function Overview() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {visibleMetricCards.map((item) => <div key={item.key} className="h-full">{item.node}</div>)}
       </div>
+
+      <Card title="Breakdown vốn" subtitle="Cách dashboard tính số dư hiện tại từ dữ liệu Sheet">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {capitalBreakdown.map((item) => (
+            <div key={item.label} className="metric-surface p-4">
+              <div className="type-caption text-[10px]">{item.label}</div>
+              <div
+                className={cn(
+                  'mt-2 font-mono text-xl font-extrabold',
+                  item.tone === 'positive' && 'text-[var(--win)]',
+                  item.tone === 'negative' && 'text-[var(--loss)]',
+                  (item.tone === 'strong' || item.tone === 'neutral') && 'text-foreground',
+                )}
+              >
+                {item.value >= 0 && item.tone !== 'neutral' && item.tone !== 'strong' ? '+' : ''}{formatCurrency(item.value)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <Card

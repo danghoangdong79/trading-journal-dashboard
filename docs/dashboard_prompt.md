@@ -8,7 +8,7 @@ Ban la senior product designer + frontend engineer. Hay nang cap dashboard Khang
 Boi canh:
 - San pham phuc vu trader Viet Nam giao dich Phai sinh VN30F va Co phieu.
 - Dashboard hien la HTML/CSS/JS tinh trong `dashboard/`.
-- Du lieu doc tu Google Sheets API range `JOURNAL!A1:X2000`.
+- Du lieu doc tu Google Sheets API range `JOURNAL!A1:Y2000`.
 - Cac cot quan trong: Trang Thai, Tai San, Ma GD, Chien Luoc, Vi The, Ngay Mo, Gio Mo, Ngay Dong, Gia Vao, Gia Dong, Lai/Lo Rong, Tam Ly, Ghi Chu Review.
 
 Muc tieu UX/UI:

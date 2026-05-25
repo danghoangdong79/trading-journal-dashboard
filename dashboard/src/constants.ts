@@ -2,10 +2,10 @@ import { TrendingUp, TrendingDown, Minus, Clock, type LucideIcon } from 'lucide-
 import type { TradeStatus, PositionType, Trade } from './types.ts';
 
 export const STATUS_CONFIG: Record<TradeStatus, { label: string; color: string; icon: LucideIcon }> = {
-  'Thắng': { label: 'Thắng', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', icon: TrendingUp },
+  'Tháº¯ng': { label: 'Tháº¯ng', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', icon: TrendingUp },
   'Thua': { label: 'Thua', color: 'bg-rose-500/10 text-rose-500 border-rose-500/20', icon: TrendingDown },
-  'Hòa': { label: 'Hòa', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20', icon: Minus },
-  'Đang mở': { label: 'Đang mở', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20', icon: Clock },
+  'HÃ²a': { label: 'HÃ²a', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20', icon: Minus },
+  'Äang má»': { label: 'Äang má»', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20', icon: Clock },
 };
 
 export const POSITION_CONFIG: Record<PositionType, { label: string; color: string }> = {
@@ -16,9 +16,10 @@ export const POSITION_CONFIG: Record<PositionType, { label: string; color: strin
 export const DEMO_TRADES: Trade[] = [
   {
     rowNumber: 2,
-    status: 'Thắng',
+    status: 'Tháº¯ng',
     account: 'VNDIRECT-01',
-    assetType: 'Phái sinh',
+    orderId: 'DEMO-001',
+    assetType: 'PhÃ¡i sinh',
     symbol: 'VN30F2405',
     position: 'LONG',
     orderType: 'LIMIT',
@@ -37,8 +38,8 @@ export const DEMO_TRADES: Trade[] = [
     grossPnL: 2350000,
     feesAndTaxes: 25000,
     netPnL: 2325000,
-    mood: 'Tự tin',
-    reviewNote: 'Lệnh tốt, tuân thủ kỷ luật',
+    mood: 'Tá»± tin',
+    reviewNote: 'Lá»nh tá»t, tuÃ¢n thá»§ ká»· luáº­t',
     sector: 'VN30',
     entryDateTime: new Date('2024-05-01T09:30:00'),
     exitDateTime: new Date('2024-05-01T10:45:00'),
@@ -49,7 +50,8 @@ export const DEMO_TRADES: Trade[] = [
     rowNumber: 3,
     status: 'Thua',
     account: 'VNDIRECT-01',
-    assetType: 'Cổ phiếu',
+    orderId: 'DEMO-002',
+    assetType: 'Cá» phiáº¿u',
     symbol: 'FPT',
     position: 'LONG',
     orderType: 'MARKET',
@@ -68,9 +70,9 @@ export const DEMO_TRADES: Trade[] = [
     grossPnL: -1400000,
     feesAndTaxes: 15000,
     netPnL: -1415000,
-    mood: 'Nôn nóng',
-    reviewNote: 'Vào lệnh hơi sớm',
-    sector: 'Công nghệ',
+    mood: 'NÃ´n nÃ³ng',
+    reviewNote: 'VÃ o lá»nh hÆ¡i sá»m',
+    sector: 'CÃ´ng nghá»',
     entryDateTime: new Date('2024-05-02T13:15:00'),
     exitDateTime: new Date('2024-05-02T14:30:00'),
     cashFlow: 0,

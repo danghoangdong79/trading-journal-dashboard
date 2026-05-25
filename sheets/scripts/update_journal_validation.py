@@ -1,83 +1,98 @@
-"""Update JOURNAL data validation and FORMULAS matrix"""
-import os, sys
+﻿"""Update JOURNAL data validation and FORMULAS matrix for the A:Y layout."""
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
-from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
+
+import gspread
 from google.oauth2.credentials import Credentials as OAuthCreds
 from googleapiclient.discovery import build
-import gspread
+from settings import SHEET_ID as CONFIGURED_SHEET_ID, TOKEN_PATH as CONFIGURED_TOKEN_PATH
 
 TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
 SHEET_ID = CONFIGURED_SHEET_ID
 
+
 def fix_journal():
-    creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
+    creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ["https://www.googleapis.com/auth/spreadsheets"])
     gc = gspread.authorize(creds)
     sh = gc.open_by_key(SHEET_ID)
-    sheets_api = build('sheets', 'v4', credentials=creds)
-    
+    sheets_api = build("sheets", "v4", credentials=creds)
+
     ws_formulas = sh.worksheet("FORMULAS")
     ws_journal = sh.worksheet("JOURNAL")
 
-    # 1. Build the Helper Matrix in FORMULAS for Dependent Dropdown
-    ws_formulas.update_acell('M1', 'MATRIX MÃ GD')
+    ws_formulas.update_acell("M1", "MATRIX MÃ GD")
     matrix_formulas = []
-    for i in range(2, 2001):
-        f = f'=IFERROR(TRANSPOSE(IF(JOURNAL!$C{i}="Cổ phiếu", $A$2:$A, IF(JOURNAL!$C{i}="Phái sinh", $B$2:$B, {{""}}))), "")'
-        matrix_formulas.append([f])
-    ws_formulas.update(values=matrix_formulas, range_name='M2:M2000', value_input_option='USER_ENTERED')
+    for row_number in range(2, 2001):
+        formula = (
+            f'=IFERROR(TRANSPOSE(IF(JOURNAL!$D{row_number}="Cổ phiếu", $A$2:$A, '
+            f'IF(JOURNAL!$D{row_number}="Phái sinh", $B$2:$B, {{""}}))), "")'
+        )
+        matrix_formulas.append([formula])
+    ws_formulas.update(values=matrix_formulas, range_name="M2:M2000", value_input_option="USER_ENTERED")
 
-    # 2. Add Data Validations to JOURNAL
-    v_reqs = []
-    
-    # Helper to add ONE_OF_RANGE validation
-    def add_val_range(col, range_str):
-        v_reqs.append({
-            'setDataValidation': {
-                'range': {'sheetId': ws_journal.id, 'startRowIndex': 1, 'endRowIndex': 2000, 'startColumnIndex': col, 'endColumnIndex': col+1},
-                'rule': {
-                    'condition': {'type': 'ONE_OF_RANGE', 'values': [{'userEnteredValue': range_str}]},
-                    'showCustomUi': True, 'strict': True
-                }
+    requests = []
+
+    def grid_col(column_index):
+        return {
+            "sheetId": ws_journal.id,
+            "startRowIndex": 1,
+            "endRowIndex": 2000,
+            "startColumnIndex": column_index,
+            "endColumnIndex": column_index + 1,
+        }
+
+    def clear_validation(column_index):
+        requests.append({"setDataValidation": {"range": grid_col(column_index), "rule": None}})
+
+    def add_val_range(column_index, range_str, strict=True):
+        requests.append({
+            "setDataValidation": {
+                "range": grid_col(column_index),
+                "rule": {
+                    "condition": {"type": "ONE_OF_RANGE", "values": [{"userEnteredValue": range_str}]},
+                    "showCustomUi": True,
+                    "strict": strict,
+                },
             }
         })
-        
-    # Helper to add ONE_OF_LIST validation
-    def add_val_list(col, lst):
-        v_reqs.append({
-            'setDataValidation': {
-                'range': {'sheetId': ws_journal.id, 'startRowIndex': 1, 'endRowIndex': 2000, 'startColumnIndex': col, 'endColumnIndex': col+1},
-                'rule': {
-                    'condition': {'type': 'ONE_OF_LIST', 'values': [{'userEnteredValue': x} for x in lst]},
-                    'showCustomUi': True, 'strict': True
-                }
+
+    def add_val_list(column_index, values, strict=True):
+        requests.append({
+            "setDataValidation": {
+                "range": grid_col(column_index),
+                "rule": {
+                    "condition": {"type": "ONE_OF_LIST", "values": [{"userEnteredValue": value} for value in values]},
+                    "showCustomUi": True,
+                    "strict": strict,
+                },
             }
         })
 
-    # Clear old validations first
-    clear_cols = [2, 3, 4, 5, 6, 21]
-    for c in clear_cols:
-        v_reqs.append({'setDataValidation': {'range': {'sheetId': ws_journal.id, 'startRowIndex': 1, 'endRowIndex': 2000, 'startColumnIndex': c, 'endColumnIndex': c+1}, 'rule': None}})
+    for column_index in [1, 3, 4, 5, 6, 7, 8, 10, 22]:
+        clear_validation(column_index)
 
-    # C(2): Tài sản
-    add_val_list(2, ['Cổ phiếu', 'Phái sinh'])
-    
-    # E(4): Vị thế
-    add_val_list(4, ['LONG', 'SHORT', 'Mua', 'Bán'])
-    
-    # D(3): Mã GD -> Dependent Dropdown
-    add_val_range(3, '=FORMULAS!M2:Z2')
-    
-    # F(5): Loại lệnh
-    add_val_range(5, '=FORMULAS!$E$2:$E')
-    
-    # G(6): Chiến lược
-    add_val_range(6, '=FORMULAS!$C$2:$C')
-    
-    # V(21): Tâm lý
-    add_val_range(21, '=FORMULAS!$D$2:$D')
+    add_val_range(1, "=FORMULAS!$I$2:$I", strict=False)
+    add_val_list(3, ["Cổ phiếu", "Phái sinh"])
+    add_val_range(4, "=FORMULAS!M2:Z2")
+    add_val_list(5, ["LONG", "SHORT"])
+    add_val_range(6, "=FORMULAS!$E$2:$E")
+    add_val_range(7, "=FORMULAS!$C$2:$C")
 
-    sheets_api.spreadsheets().batchUpdate(spreadsheetId=SHEET_ID, body={'requests': v_reqs}).execute()
-    print("JOURNAL data validations and FORMULAS matrix fully restored.")
+    for column_index in [8, 10]:
+        requests.append({
+            "setDataValidation": {
+                "range": grid_col(column_index),
+                "rule": {"condition": {"type": "DATE_IS_VALID"}, "showCustomUi": True, "strict": False},
+            }
+        })
 
-if __name__ == '__main__':
+    add_val_range(22, "=FORMULAS!$D$2:$D")
+
+    sheets_api.spreadsheets().batchUpdate(spreadsheetId=SHEET_ID, body={"requests": requests}).execute()
+    print("JOURNAL validations and FORMULAS matrix restored for A:Y layout.")
+
+
+if __name__ == "__main__":
     fix_journal()

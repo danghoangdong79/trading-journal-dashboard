@@ -7,7 +7,6 @@ import type {
   AuthSettings,
   RiskSettings,
   ThemeMode,
-  FeeCharge,
   MetricSettings,
   SheetUser,
   SheetRuntimeConfig,
@@ -18,7 +17,6 @@ import { DEMO_TRADES } from './constants.ts';
 
 interface AppContextType {
   trades: Trade[];
-  feeCharges: FeeCharge[];
   availableAccounts: string[];
   sheetUsers: SheetUser[];
   sheetConfig: SheetRuntimeConfig | null;
@@ -68,10 +66,10 @@ const defaultRiskSettings: RiskSettings = {
 const defaultMetricSettings: MetricSettings = {
   visible: {
     netPnL: true,
+    cashFlowNet: true,
     currentBalance: true,
     totalTrades: true,
     expectancy: true,
-    feeCharges: true,
   },
   primary: 'netPnL',
 };
@@ -218,7 +216,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [feeCharges, setFeeCharges] = useState<FeeCharge[]>([]);
   const [availableAccounts, setAvailableAccounts] = useState<string[]>([]);
   const [sheetUsers, setSheetUsers] = useState<SheetUser[]>([]);
   const [sheetConfig, setSheetConfig] = useState<SheetRuntimeConfig | null>(null);
@@ -330,19 +327,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       let nextTrades: Trade[];
-      let nextFeeCharges: FeeCharge[];
       let nextAvailableAccounts: string[];
       let nextSheetConfig: SheetRuntimeConfig | null;
 
       if (settings.isDemoMode) {
         nextTrades = DEMO_TRADES;
-        nextFeeCharges = [];
         nextAvailableAccounts = getTradeAccounts(DEMO_TRADES);
         nextSheetConfig = null;
       } else {
-        [nextTrades, nextFeeCharges, nextAvailableAccounts, nextSheetConfig] = await Promise.all([
+        [nextTrades, nextAvailableAccounts, nextSheetConfig] = await Promise.all([
           GoogleSheetsService.fetchTrades(settings.sheetId, settings.apiKey, { forceRefresh }),
-          GoogleSheetsService.fetchFeeCharges(settings.sheetId, settings.apiKey, { forceRefresh }).catch(() => []),
           GoogleSheetsService.fetchAvailableAccounts(settings.sheetId, settings.apiKey, { forceRefresh }).catch(() => []),
           GoogleSheetsService.fetchSheetConfig(settings.sheetId, settings.apiKey, { forceRefresh }).catch(() => null),
         ]);
@@ -351,7 +345,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const mergedAccounts = uniqueSortedStrings([...nextAvailableAccounts, ...getTradeAccounts(nextTrades)]);
 
       setTrades(nextTrades);
-      setFeeCharges(nextFeeCharges);
       setAvailableAccounts(mergedAccounts);
       setSheetConfig(nextSheetConfig);
       setStats(AnalyticsService.calculateStats(nextTrades));
@@ -359,7 +352,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const message = caughtError instanceof Error ? caughtError.message : 'Không thể tải dữ liệu giao dịch.';
       setError(`${message} Bảng điều khiển đang hiển thị dữ liệu mẫu để bạn vẫn xem được giao diện.`);
       setTrades(DEMO_TRADES);
-      setFeeCharges([]);
       setAvailableAccounts(getTradeAccounts(DEMO_TRADES));
       setSheetConfig(null);
       setStats(AnalyticsService.calculateStats(DEMO_TRADES));
@@ -439,7 +431,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider
       value={{
         trades,
-        feeCharges,
         availableAccounts,
         sheetUsers,
         sheetConfig,

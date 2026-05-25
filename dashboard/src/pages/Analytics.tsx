@@ -25,7 +25,7 @@ const DEFAULT_ANALYTICS_FILTERS: TradeFilters = {
 };
 
 export default function Analytics() {
-  const { trades, feeCharges, availableAccounts } = useApp();
+  const { trades, availableAccounts } = useApp();
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('strategy');
   const [filters, setFilters] = useState<TradeFilters>(DEFAULT_ANALYTICS_FILTERS);
 
@@ -55,7 +55,6 @@ export default function Analytics() {
   const positiveItems = activeData.filter((item) => item.pnl > 0);
   const totalGroupedPnl = activeData.reduce((sum, item) => sum + item.pnl, 0);
   const topContribution = totalGroupedPnl > 0 && bestItem ? bestItem.pnl / totalGroupedPnl : 0;
-  const totalFeeCharges = feeCharges.reduce((sum, item) => sum + item.amount, 0);
   return (
     <div className="mx-auto max-w-[1440px] space-y-5">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -101,7 +100,6 @@ export default function Analytics() {
         <KpiCard title="Tỉ trọng top" value={formatPercent(topContribution)} icon={BarChart3} delta={bestItem ? bestItem.name : 'Chưa có'} description="Cho biết hiệu suất có đang phụ thuộc quá nhiều vào một nhóm duy nhất hay không." />
         <KpiCard title="Nhóm âm" value={negativeItems.length} icon={TrendingDown} delta={`${positiveItems.length} nhóm dương`} deltaType={negativeItems.length > positiveItems.length ? 'negative' : 'neutral'} description="Số nhóm đang có tổng PnL âm. Đây là danh sách cần review để giảm rò rỉ lợi nhuận." />
         <KpiCard title="Ổn định nhất" value={mostReliable?.name || '—'} icon={Target} delta={mostReliable ? formatPercent(mostReliable.winRate) : 'Chưa đủ mẫu'} deltaType={(mostReliable?.winRate || 0) >= 0.5 ? 'positive' : 'neutral'} description="Nhóm có win rate tốt nhất trong các nhóm có tối thiểu 3 giao dịch." />
-        <KpiCard title="Phí định kỳ" value={formatCurrency(totalFeeCharges)} icon={TrendingUp} delta={`${feeCharges.length} dòng phí`} description="Tổng phí đọc từ tab FEE_CHARGES. Dùng để so với PnL nhóm." />
       </div>
 
       <Card title="Tóm tắt hiệu suất" subtitle="Các chỉ số lõi để quyết định nên tăng cường, giảm size hay tiếp tục quan sát">

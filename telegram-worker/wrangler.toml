@@ -1,0 +1,10 @@
+name = "dahodo-journal-telegram"
+main = "src/index.ts"
+compatibility_date = "2025-05-14"
+
+# Secrets (set via `wrangler secret put`):
+# TELEGRAM_BOT_TOKEN    - Bot token from @BotFather
+# TELEGRAM_SECRET       - Random string to verify webhook authenticity
+# GOOGLE_SERVICE_ACCOUNT_JSON - Service account JSON for Sheets write access
+# SHEET_ID              - Google Sheets spreadsheet ID
+# ALLOWED_CHAT_IDS      - Comma-separated list of allowed Telegram chat IDs

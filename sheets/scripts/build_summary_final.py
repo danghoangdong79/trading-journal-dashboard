@@ -8,6 +8,20 @@ import gspread
 TOKEN_PATH = str(CONFIGURED_TOKEN_PATH)
 SHEET_ID = CONFIGURED_SHEET_ID
 
+def summary_cashflow_formula():
+    tat_ca = "T\u1ea5t c\u1ea3"
+    theo_thang = "Theo th\u00e1ng"
+    regex = "r\u00fat|rut|withdraw|outflow"
+    return (
+        '=IFERROR(SUM(FILTER('
+        f'IF(REGEXMATCH(LOWER(CASHFLOW!C2:C),"{regex}"),-ABS(CASHFLOW!D2:D),ABS(CASHFLOW!D2:D)),'
+        'CASHFLOW!A2:A<>"",'
+        f'IF(OR($C$8="",$C$8="{tat_ca}"),CASHFLOW!B2:B<>"",CASHFLOW!B2:B=$C$8),'
+        f'IF($E$4="{theo_thang}",IF($E$5="{tat_ca}",CASHFLOW!A2:A<>"",YEAR(CASHFLOW!A2:A)=$E$5),IF(ISBLANK($E$7),CASHFLOW!A2:A<>"",CASHFLOW!A2:A>=$E$7)),'
+        f'IF($E$4="{theo_thang}",IF($E$6="{tat_ca}",CASHFLOW!A2:A<>"",MONTH(CASHFLOW!A2:A)=$E$6),IF(ISBLANK($E$8),CASHFLOW!A2:A<>"",CASHFLOW!A2:A<=$E$8))'
+        ')),0)'
+    )
+
 def build_final():
     creds = OAuthCreds.from_authorized_user_file(TOKEN_PATH, ['https://www.googleapis.com/auth/spreadsheets'])
     gc = gspread.authorize(creds)
@@ -61,12 +75,13 @@ def build_final():
     
     # Stats Block (F4:O7)
     stats_g1 = [
-        ["Vốn ban đầu", "=CONFIG!$G$3 + CONFIG!$G$4"],
-        ["Lãi/Lỗ chốt", "=SUM(Q10:Q)"],
-        ["% Lãi/Lỗ", "=IFERROR(G5/G4, 0)"],
-        ["Số dư h.tại", "=G4+G5"]
+        ["V\u1ed1n ban \u0111\u1ea7u", "=CONFIG!$G$3 + CONFIG!$G$4"],
+        ["L\u00e3i/L\u1ed7 ch\u1ed1t", "=SUM(Q10:Q)"],
+        ["% L\u00e3i/L\u1ed7", "=IFERROR(G5/G4, 0)"],
+        ["N\u1ea1p/R\u00fat r\u00f2ng", summary_cashflow_formula()],
+        ["S\u1ed1 d\u01b0 h.t\u1ea1i", "=G4+G5+G7"]
     ]
-    ws.update(values=stats_g1, range_name='F4:G7', value_input_option='USER_ENTERED')
+    ws.update(values=stats_g1, range_name='F4:G8', value_input_option='USER_ENTERED')
     
     stats_g2 = [
         ["Tổng GD", '=COUNTIF(D10:D, "<>")'],
@@ -94,9 +109,9 @@ def build_final():
     
     stats_g5 = [
         ["Max DD", '=IFERROR(MIN(Q10:Q), 0)'],
-        ["DD Tuyệt đối", '=IFERROR(O4/G4, 0)'],
-        ["Mục tiêu", '=CONFIG!$G$6'],
-        ["Rủi ro/lệnh", '=CONFIG!$G$5']
+        ["DD Tuy\u1ec7t \u0111\u1ed1i", '=IFERROR(O4/G4, 0)'],
+        ["M\u1ee5c ti\u00eau", '=CONFIG!$G$6'],
+        ["R\u1ee7i ro/l\u1ec7nh", '=CONFIG!$G$5']
     ]
     ws.update(values=stats_g5, range_name='N4:O7', value_input_option='USER_ENTERED')
     

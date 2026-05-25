@@ -14,19 +14,19 @@ const BREADCRUMBS: Record<string, string> = {
 };
 
 const SHEET_SHORTCUTS: Record<string, string> = {
-  '/overview': 'JOURNAL!A1:X2000',
-  '/journal': 'JOURNAL!A1:X2000',
-  '/analytics': 'JOURNAL!A1:X2000',
-  '/calendar': 'JOURNAL!A1:X2000',
+  '/overview': 'JOURNAL!A1:Y2000',
+  '/journal': 'JOURNAL!A1:Y2000',
+  '/analytics': 'JOURNAL!A1:Y2000',
+  '/calendar': 'JOURNAL!A1:Y2000',
   '/risk': 'CONFIG!E1:G7',
-  '/guide': 'JOURNAL!A1:X2000',
+  '/guide': 'JOURNAL!A1:Y2000',
   '/settings': 'CONFIG!A1:K5',
 };
 
 export default function Topbar({ isMobileMenuOpen, setIsMobileMenuOpen }: { isMobileMenuOpen: boolean; setIsMobileMenuOpen: (val: boolean) => void }) {
   const location = useLocation();
   const { stats, refreshData, isLoading, settings, authState, logout } = useApp();
-  const sheetRange = SHEET_SHORTCUTS[location.pathname] || 'JOURNAL!A1:X2000';
+  const sheetRange = SHEET_SHORTCUTS[location.pathname] || 'JOURNAL!A1:Y2000';
   const sheetUrl = buildSheetUrl(settings.sheetId, sheetRange, settings.journalGid, settings.configGid);
 
   return (

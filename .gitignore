@@ -1,3 +1,4 @@
+﻿node_modules/
 credentials/
 credential/
 logs/
@@ -5,4 +6,23 @@ scratch/
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+*.local
+.dev.vars
 .DS_Store
+
+# Cloudflare/Wrangler local state and secrets
+.wrangler/
+**/.wrangler/
+
+# Exported workflow backups may contain endpoints, mappings, or tokens
+telegram-worker/workflow*.json
+telegram-worker/.env
+telegram-worker/.env.*
+telegram-worker/.dev.vars
+
+# Apps Script local project binding
+.clasp.json
+**/.clasp.json
+
