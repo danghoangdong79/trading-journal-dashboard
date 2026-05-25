@@ -211,15 +211,16 @@ function uniqueSortedStrings_(values) {
 
 function normalizeStatus_(value) {
   const normalized = normalizeText_(value);
-  if (normalized === 'thĐang') return 'Thắng';
+  if (normalized === 'thang') return 'Thắng';
   if (normalized === 'thua') return 'Thua';
   if (normalized === 'hoa') return 'Hòa';
-  if (normalized === 'dĐang mo') return 'Đang mở';
-    return 'Đang mở';
+  if (normalized === 'dang mo') return 'Đang mở';
+  if (normalized === 'dong') return 'Đóng';
+  return 'Đang mở';
 }
 
 function normalizeAssetType_(value) {
-  return normalizeText_(value) === 'phai sinh' ? 'PhÃ¡i sinh' : 'Cá» phiáº¿u';
+  return normalizeText_(value) === 'phai sinh' ? 'Phái sinh' : 'Cổ phiếu';
 }
 
 function normalizePosition_(value) {

@@ -109,10 +109,11 @@ function parseDateTime(dateStr, timeStr) {
 
 function normalizeStatus(value) {
     const normalized = normalizeText(value);
-    if (normalized === 'thĐang') return 'Thắng';
+    if (normalized === 'thang') return 'Thắng';
     if (normalized === 'thua') return 'Thua';
     if (normalized === 'hoa') return 'Hòa';
-    if (normalized === 'dĐang mo') return 'Đang mở';
+    if (normalized === 'dang mo') return 'Đang mở';
+    if (normalized === 'dong') return 'Đóng'; // Added support for 'Đóng' just in case
     return 'Đang mở';
 }
 
